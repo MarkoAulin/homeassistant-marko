@@ -1,0 +1,210 @@
+# /config/packages/heatpump_energy.yaml
+# Integraatiot (kWh, *_src_v2) + v2-aliaset + utilityt
+# + P_el oikein 400 imp/kWh -> sensor.heatpump_power_v2_kw
+# + Tank Energy (kWh) v2 + referenssi
+
+############################################################
+# PARAMETRI: Tank Energy -referenssilämpötila
+############################################################
+input_number:
+  tank_energy_ref_c:
+    name: "Tank Energy – referenssi (°C)"
+    min: 10
+    max: 50
+    step: 0.1
+    mode: box
+    unit_of_measurement: "°C"
+    initial: 25.0
+
+############################################################
+# TEMPLATE-SENSORIT: P_el v2 + Tank Energy v2 + v2-aliaset
+############################################################
+template:
+  - sensor:
+
+      # Sähköteho (kW) v2: pulssinopeudesta oikein 400 imp/kWh
+      - name: "Heatpump Power v2 kW"
+        unique_id: heatpump_power_v2_kw
+        unit_of_measurement: "kW"
+        state_class: measurement
+        icon: mdi:flash
+        state: >
+          {% set rate = states('sensor.hp_pulse_rate_alias')|float(0) %}  {# imp/min #}
+          {% set k = 400 %}
+          {{ (rate * 60 / k) | round(2) }}
+
+      # Tank Energy (kWh) v2: absoluuttinen energia suhteessa referenssiin
+      - name: "Heatpump Tank Energy kWh v2"
+        unique_id: heatpump_tank_energy_kwh_v2
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: measurement
+        icon: mdi:water-boiler
+        state: >
+          {% set V = states('input_number.tank_volume_l')|float(1500) %}
+          {% set T = states('sensor.heatpump_tank_average')|float(0) %}
+          {% set Tref = states('input_number.tank_energy_ref_c')|float(25) %}
+          {# 1 L * 1 K ≈ 1.163 Wh → 0.001163 kWh #}
+          {{ (V * (T - Tref) * 0.001163) | round(2) }}
+
+      # ---------- v2 KANONISET (peilaa suoraan *_src_v2) ----------
+      - name: "Heatpump Electrical Energy Total LTS v2"
+        unique_id: heatpump_electrical_energy_total_lts_v2
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ states('sensor.heatpump_electrical_energy_total_lts_src_v2')|float(0)|round(3) }}"
+
+      - name: "Heatpump Heat Energy Total LTS v2"
+        unique_id: heatpump_heat_energy_total_lts_v2
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ states('sensor.heatpump_heat_energy_total_lts_src_v2')|float(0)|round(3) }}"
+
+      - name: "Heatpump UFH Wet Energy Total LTS v2"
+        unique_id: heatpump_ufh_wet_energy_total_lts_v2
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ states('sensor.heatpump_ufh_wet_energy_total_lts_src_v2')|float(0)|round(3) }}"
+
+      - name: "Heatpump UFH Main Energy Total LTS v2"
+        unique_id: heatpump_ufh_main_energy_total_lts_v2
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ states('sensor.heatpump_ufh_main_energy_total_lts_src_v2')|float(0)|round(3) }}"
+
+      - name: "Heatpump UFH Total Energy Total LTS v2"
+        unique_id: heatpump_ufh_total_energy_total_lts_v2
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ states('sensor.heatpump_ufh_total_energy_total_lts_src_v2')|float(0)|round(3) }}"
+
+      # Dashboard-energia alias (yhteensopiva nimi)
+      - name: "Heatpump Energy (kWh)"
+        unique_id: heatpump_energy_kwh_dashboard_v2
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ states('sensor.heatpump_electrical_energy_total_lts_v2')|float(0)|round(3) }}"
+
+############################################################
+# INTEGRAATIOT (src_v2): kWh oikein (platform: integration)
+############################################################
+sensor:
+  - platform: integration
+    name: "Heatpump Electrical Energy Total LTS (src v2)"
+    unique_id: heatpump_electrical_energy_total_lts_src_v2
+    source: sensor.heatpump_power_v2_kw
+    unit_time: h
+    round: 3
+    method: left
+
+  - platform: integration
+    name: "Heatpump Heat Energy Total LTS (src v2)"
+    unique_id: heatpump_heat_energy_total_lts_src_v2
+    source: sensor.heatpump_heat_power
+    unit_time: h
+    round: 3
+    method: left
+
+  - platform: integration
+    name: "Heatpump UFH Wet Energy Total LTS (src v2)"
+    unique_id: heatpump_ufh_wet_energy_total_lts_src_v2
+    source: sensor.heatpump_ufh_wet_heat_power_v2
+    unit_time: h
+    round: 3
+    method: left
+
+  - platform: integration
+    name: "Heatpump UFH Main Energy Total LTS (src v2)"
+    unique_id: heatpump_ufh_main_energy_total_lts_src_v2
+    source: sensor.heatpump_ufh_main_heat_power_v2
+    unit_time: h
+    round: 3
+    method: left
+
+  - platform: integration
+    name: "Heatpump UFH Total Energy Total LTS (src v2)"
+    unique_id: heatpump_ufh_total_energy_total_lts_src_v2
+    source: sensor.heatpump_ufh_total_heat_power_v2
+    unit_time: h
+    round: 3
+    method: left
+
+############################################################
+# UTILITY_METER (päivä/viikko/kk/vuosi)
+############################################################
+utility_meter:
+  # Sähkö (kWh)
+  heatpump_electricity_daily:
+    source: sensor.heatpump_electrical_energy_total_lts_v2
+    cycle: daily
+  heatpump_electricity_weekly:
+    source: sensor.heatpump_electrical_energy_total_lts_v2
+    cycle: weekly
+  heatpump_electricity_monthly:
+    source: sensor.heatpump_electrical_energy_total_lts_v2
+    cycle: monthly
+  heatpump_electricity_yearly:
+    source: sensor.heatpump_electrical_energy_total_lts_v2
+    cycle: yearly
+
+  # Lämpö (kWh)
+  heatpump_heat_daily:
+    source: sensor.heatpump_heat_energy_total_lts_v2
+    cycle: daily
+  heatpump_heat_weekly:
+    source: sensor.heatpump_heat_energy_total_lts_v2
+    cycle: weekly
+  heatpump_heat_monthly:
+    source: sensor.heatpump_heat_energy_total_lts_v2
+    cycle: monthly
+  heatpump_heat_yearly:
+    source: sensor.heatpump_heat_energy_total_lts_v2
+    cycle: yearly
+
+  # UFH märkätilat (kWh)
+  heatpump_ufh_wet_daily_v2:
+    source: sensor.heatpump_ufh_wet_energy_total_lts_v2
+    cycle: daily
+  heatpump_ufh_wet_weekly_v2:
+    source: sensor.heatpump_ufh_wet_energy_total_lts_v2
+    cycle: weekly
+  heatpump_ufh_wet_monthly_v2:
+    source: sensor.heatpump_ufh_wet_energy_total_lts_v2
+    cycle: monthly
+  heatpump_ufh_wet_yearly_v2:
+    source: sensor.heatpump_ufh_wet_energy_total_lts_v2
+    cycle: yearly
+
+  # UFH muut tilat (kWh)
+  heatpump_ufh_main_daily_v2:
+    source: sensor.heatpump_ufh_main_energy_total_lts_v2
+    cycle: daily
+  heatpump_ufh_main_weekly_v2:
+    source: sensor.heatpump_ufh_main_energy_total_lts_v2
+    cycle: weekly
+  heatpump_ufh_main_monthly_v2:
+    source: sensor.heatpump_ufh_main_energy_total_lts_v2
+    cycle: monthly
+  heatpump_ufh_main_yearly_v2:
+    source: sensor.heatpump_ufh_main_energy_total_lts_v2
+    cycle: yearly
+
+  # UFH total (kWh)
+  heatpump_ufh_total_daily_v2:
+    source: sensor.heatpump_ufh_total_energy_total_lts_v2
+    cycle: daily
+  heatpump_ufh_total_weekly_v2:
+    source: sensor.heatpump_ufh_total_energy_total_lts_v2
+    cycle: weekly
+  heatpump_ufh_total_monthly_v2:
+    source: sensor.heatpump_ufh_total_energy_total_lts_v2
+    cycle: monthly
+  heatpump_ufh_total_yearly_v2:
+    source: sensor.heatpump_ufh_total_energy_total_lts_v2
+    cycle: yearly

@@ -1,0 +1,148 @@
+#############################
+# HEATPUMP DEBUG & ALIAS SAFETY — v0.1
+#############################
+
+template:
+  - sensor:
+      # --- DEBUG: näyttää mihin sähköalias tarttuu ---
+      - name: "DBG Electrical LTS candidates"
+        unique_id: dbg_electrical_lts_candidates
+        state: >
+          {% set c = [
+            'sensor.heatpump_electrical_energy_total_lts_v3',
+            'sensor.heatpump_electrical_energy_total_lts_3',
+            'sensor.heatpump_electrical_energy_total_lts_2',
+            'sensor.heatpump_electrical_energy_total_lts'
+          ] %}
+          {% for e in c %}{{ e }}={{ states(e) }}; {% endfor %}
+
+      # --- KANONINEN SÄHKÖ LTS turvallisesti (fallback = src) ---
+      - name: "Heatpump Electrical Energy Total LTS"
+        unique_id: heatpump_electrical_energy_total_lts_canonical_safe
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {% set c = [
+            'sensor.heatpump_electrical_energy_total_lts_v3',
+            'sensor.heatpump_electrical_energy_total_lts_3',
+            'sensor.heatpump_electrical_energy_total_lts_2',
+            'sensor.heatpump_electrical_energy_total_lts'
+          ] %}
+          {% set val = none %}
+          {% for e in c %}
+            {% set v = states(e) %}
+            {% if v not in ['unknown','unavailable','', none] %}
+              {% set val = v|float(0) %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          {{ val if val is not none else states('sensor.heatpump_electrical_energy_total_lts_src')|float(0) }}
+
+      # --- KANONINEN LÄMPÖ LTS turvallisesti (fallback = src) ---
+      - name: "Heatpump Heat Energy Total LTS"
+        unique_id: heatpump_heat_energy_total_lts_canonical_safe
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {% set c = [
+            'sensor.heatpump_heat_energy_total_lts_v3',
+            'sensor.heatpump_heat_energy_total_lts_3',
+            'sensor.heatpump_heat_energy_total_lts_2',
+            'sensor.heatpump_heat_energy_total_lts'
+          ] %}
+          {% set val = none %}
+          {% for e in c %}
+            {% set v = states(e) %}
+            {% if v not in ['unknown','unavailable','', none] %}
+              {% set val = v|float(0) %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          {{ val if val is not none else states('sensor.heatpump_heat_energy_total_lts_src')|float(0) }}
+
+      # --- UFH märkätilat LTS turvallisesti (fallback = src) ---
+      - name: "Heatpump UFH Wet Energy Total LTS"
+        unique_id: heatpump_ufh_wet_energy_total_lts_canonical_safe
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {% set c = [
+            'sensor.heatpump_ufh_wet_energy_total_lts_v3',
+            'sensor.heatpump_ufh_wet_energy_total_lts_2',
+            'sensor.heatpump_ufh_wet_energy_total_lts'
+          ] %}
+          {% set val = none %}
+          {% for e in c %}
+            {% set v = states(e) %}
+            {% if v not in ['unknown','unavailable','', none] %}
+              {% set val = v|float(0) %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          {{ val if val is not none else states('sensor.heatpump_ufh_wet_energy_total_lts_src')|float(0) }}
+
+      # --- UFH muut tilat LTS turvallisesti (fallback = src) ---
+      - name: "Heatpump UFH Main Energy Total LTS"
+        unique_id: heatpump_ufh_main_energy_total_lts_canonical_safe
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {% set c = [
+            'sensor.heatpump_ufh_main_energy_total_lts',
+            'sensor.heatpump_ufh_main_energy_total_lts_v3',
+            'sensor.heatpump_ufh_main_energy_total_lts_2'
+          ] %}
+          {% set val = none %}
+          {% for e in c %}
+            {% set v = states(e) %}
+            {% if v not in ['unknown','unavailable','', none] %}
+              {% set val = v|float(0) %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          {{ val if val is not none else states('sensor.heatpump_ufh_main_energy_total_lts_src')|float(0) }}
+
+      # --- UFH yhteensä LTS turvallisesti (fallback = src) ---
+      - name: "Heatpump UFH Total Energy Total LTS"
+        unique_id: heatpump_ufh_total_energy_total_lts_canonical_safe
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {% set c = [
+            'sensor.heatpump_ufh_total_energy_total_lts',
+            'sensor.heatpump_ufh_total_energy_total_lts_v3',
+            'sensor.heatpump_ufh_total_energy_total_lts_2'
+          ] %}
+          {% set val = none %}
+          {% for e in c %}
+            {% set v = states(e) %}
+            {% if v not in ['unknown','unavailable','', none] %}
+              {% set val = v|float(0) %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          {{ val if val is not none else states('sensor.heatpump_ufh_total_energy_total_lts_src')|float(0) }}
+
+      # --- Dashboard "Heatpump Energy (kWh)" varmistus ---
+      - name: "Heatpump Energy (kWh)"
+        unique_id: heatpump_energy_kwh_dashboard_safe
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ states('sensor.heatpump_electrical_energy_total_lts')|float(0)|round(2) }}"
+
+      # --- Tank Energy alias dashboardin nimellä ---
+      - name: "Heatpump Tank Energy (kWh)"
+        unique_id: heatpump_tank_energy_kwh_safe
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: measurement
+        icon: mdi:water-boiler
+        state: >
+          {% set v = states('sensor.tank_energy_kwh') %}
+          {{ v|float(0)|round(2) if v not in ['unknown','unavailable','', none] else 0 }}

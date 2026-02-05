@@ -1,0 +1,35 @@
+# /config/packages/outdoor_temperature.yaml
+# Luo robusti ulkolämpötila-sensori weather.* -entiteetistä (Met.no tms.)
+# - etsii ensimmäisen weather-entityn (expand(states.weather))
+# - yrittää ensin 'temperature' attribuutin
+# - jos sitä ei ole, yrittää forecast[0].temperature
+# - päivittyy 1 min välein, jotta tilastot karttuvat varmasti
+
+template:
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    sensor:
+      - name: "Outdoor Temperature"
+        unique_id: outdoor_temperature_auto
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set we = expand(states.weather) | map(attribute='entity_id') | list %}
+          {% set wid = we[0] if we|length > 0 else none %}
+          {% if wid %}
+            {% set t_attr = state_attr(wid, 'temperature') %}
+            {% if t_attr is not none %}
+              {{ t_attr }}
+            {% else %}
+              {% set fc = state_attr(wid, 'forecast') %}
+              {% if fc and (fc[0] is defined) and (fc[0].temperature is defined) %}
+                {{ fc[0].temperature }}
+              {% else %}
+                unknown
+              {% endif %}
+            {% endif %}
+          {% else %}
+            unknown
+          {% endif %}

@@ -1,0 +1,142 @@
+# /config/packages/heatpump_alerts.yaml
+############################################################
+# HEATPUMP ALERTS v2 – Marko Aulin
+############################################################
+
+homeassistant:
+  customize_glob:
+    "binary_sensor.hp_alert_*":
+      device_class: problem
+
+############################################################
+# PARAMETRIT
+############################################################
+input_number:
+  hp_cold_tank_limit_c:
+    name: "Tank top 'kylmä' raja (°C)"
+    min: 20
+    max: 40
+    step: 0.1
+    mode: box
+    unit_of_measurement: "°C"
+    initial: 26.0
+
+  hp_min_cop_limit:
+    name: "COP minimiraja"
+    min: 1.0
+    max: 6.0
+    step: 0.1
+    mode: box
+    initial: 2.0
+
+  hp_brine_dt_limit:
+    name: "Brine ΔT max (°C)"
+    min: 2
+    max: 10
+    step: 0.1
+    mode: box
+    initial: 5.5
+
+  hp_ufh_dt_min_wet:
+    name: "UFH ΔT min (märkätilat)"
+    min: 0.5
+    max: 4.0
+    step: 0.1
+    mode: box
+    initial: 1.5
+
+  hp_ufh_dt_min_main:
+    name: "UFH ΔT min (muu talo)"
+    min: 0.5
+    max: 4.0
+    step: 0.1
+    mode: box
+    initial: 1.8
+
+############################################################
+# SENSORIT (COP ja ΔT:t)
+############################################################
+template:
+  - sensor:
+      # COP = P_th / P_el (v2)
+      - name: "Heatpump COP now"
+        unique_id: heatpump_cop_now
+        state: >
+          {% set Pth = states('sensor.heatpump_heat_power')|float(0) %}
+          {% set Pel = states('sensor.heatpump_power_v2_kw')|float(0.01) %}
+          {{ (Pth / Pel) | round(2) }}
+
+      # Brine ΔT mittaus (meno - paluu)
+      - name: "Brine ΔT"
+        unique_id: heatpump_brine_dt_v2
+        unit_of_measurement: "°C"
+        state: >
+          {% set t_in = states('sensor.techroom_esp32_hp_liuos_meno')|float(0) %}
+          {% set t_out = states('sensor.techroom_esp32_hp_liuos_paluu')|float(0) %}
+          {{ (t_in - t_out) | round(2) }}
+
+############################################################
+# HÄLYTYKSET (binary_sensor)
+############################################################
+binary_sensor:
+  - platform: template
+    sensors:
+
+      hp_alert_long_off_cold:
+        friendly_name: "Pitkä OFF + tankki kylmä"
+        value_template: >
+          {% set offmin = states('sensor.heatpump_last_off_time_min_v3')|float(0) %}
+          {% set limit = states('input_number.hp_cold_tank_limit_c')|float(26) %}
+          {% set tank = states('sensor.heatpump_tank_top')|float(0) %}
+          {{ offmin > 180 and tank < limit }}
+
+      hp_alert_cop_low:
+        friendly_name: "COP liian matala"
+        value_template: >
+          {% set cop = states('sensor.heatpump_cop_now')|float(0) %}
+          {% set limit = states('input_number.hp_min_cop_limit')|float(2) %}
+          {{ cop > 0 and cop < limit }}
+
+      hp_alert_brine_dt_high:
+        friendly_name: "Brine ΔT korkea"
+        value_template: >
+          {% set dt = states('sensor.brine_dt')|float(0) %}
+          {% set limit = states('input_number.hp_brine_dt_limit')|float(6) %}
+          {{ dt > limit }}
+
+      hp_alert_ufh_dt_low_wet:
+        friendly_name: "UFH märkätilat ΔT matala"
+        value_template: >
+          {% set dt = states('sensor.heatpump_ufh_wet_delta_t_v2')|float(0) %}
+          {% set limit = states('input_number.hp_ufh_dt_min_wet')|float(1.5) %}
+          {{ dt < limit }}
+
+      hp_alert_ufh_dt_low_main:
+        friendly_name: "UFH muut tilat ΔT matala"
+        value_template: >
+          {% set dt = states('sensor.heatpump_ufh_main_delta_t_v2')|float(0) %}
+          {% set limit = states('input_number.hp_ufh_dt_min_main')|float(1.8) %}
+          {{ dt < limit }}
+
+      # Marginaali vain alapuolella: hälytys ON jos UFH-meno > (TankTop - marginaali)
+      hp_alert_ufh_supply_ge_tanktop:
+        friendly_name: "UFH supply ≥ TankTop (marginaali alapuolella)"
+        value_template: >
+          {% set s = states('sensor.heatpump_ufh_wet_supply_v2')|float(0) %}
+          {% set t = states('sensor.heatpump_tank_top')|float(0) %}
+          {% set m = states('input_number.ufh_vs_tank_margin_c')|float(0.3) %}
+          {{ s > (t - m) }}
+
+############################################################
+# ACTIVE ALERTS GROUP
+############################################################
+group:
+  active_heatpump_alerts:
+    name: "Active Heatpump Alerts"
+    entities:
+      - binary_sensor.hp_alert_long_off_cold
+      - binary_sensor.hp_alert_cop_low
+      - binary_sensor.hp_alert_brine_dt_high
+      - binary_sensor.hp_alert_ufh_dt_low_wet
+      - binary_sensor.hp_alert_ufh_dt_low_main
+      - binary_sensor.hp_alert_ufh_supply_ge_tanktop

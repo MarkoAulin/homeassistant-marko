@@ -1,0 +1,110 @@
+# /config/packages/heatpump_tank.yaml
+# TANK dE/dt – SIMPLE & STABLE
+# - dE/dt suoraan keskilämpötilan derivaatasta (K/h) → kW
+# - 10 min time_simple_moving_average tasaa piikkejä
+# - Tank Energy (kWh) ja Tank Loss (W/kW) mukana seurantaan
+# - Vain yksi 'template:' ja yksi 'sensor:' juuriavain
+
+input_number:
+  tank_volume_l:
+    name: "Varaajan tilavuus"
+    min: 50
+    max: 5000
+    step: 10
+    unit_of_measurement: "L"
+    mode: box
+    icon: mdi:water-boiler
+    initial: 1500   # Säädä halutessasi (esim. inkl. putkistovesi 1600–1800 L)
+
+  tank_loss_w_per_k:
+    name: "Varaajan häviökerroin"
+    min: 0
+    max: 100
+    step: 0.5
+    unit_of_measurement: "W/K"
+    mode: box
+    icon: mdi:heat-wave
+    initial: 10
+
+template:
+  - sensor:
+      # --- Tank Energy (kWh) vain seurantaa varten ---
+      - name: "Heatpump Tank Energy (kWh)"
+        unique_id: heatpump_tank_energy_kwh_minimal
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: measurement
+        icon: mdi:water-boiler
+        state: >
+          {% set V = states('input_number.tank_volume_l')|float(0) %}
+          {% set T = states('sensor.heatpump_tank_average')|float(0) %}
+          {{ (1.16 * (V/1000) * T) | round(2) }}
+
+      # --- Varaajan häviöteho (W) + (kW) ---
+      - name: "Tank Loss Power (W)"
+        unique_id: tank_loss_power_w_minimal
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:heat-wave
+        state: >
+          {% set k = states('input_number.tank_loss_w_per_k')|float(0) %}
+          {% set t = states('sensor.heatpump_tank_average')|float(0) %}
+          {% set a = states('sensor.heatpump_room_temperature_v2')|float(0) %}
+          {% set d = (t - a) %}
+          {{ (k * (d if d > 0 else 0)) | round(1) }}
+
+      - name: "Tank Loss Power (kW)"
+        unique_id: tank_loss_power_kw_minimal
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ (states('sensor.tank_loss_power_w')|float(0) / 1000) | round(3) }}
+
+      # --- Lopullinen dE/dt (kW) = coeff * dT/dt_SMA ---
+      # Ei triggeriä → päivittyy aina kun SMA tai tilavuus vaihtuu
+      - name: "Tank Energy Change (kW) simple"
+        unique_id: tank_energy_change_kw_simple
+        unit_of_measurement: "kW"
+        device_class: power
+        state: >
+          {% set V = states('input_number.tank_volume_l')|float(0) %}
+          {% set coeff = 1.16 * (V/1000) %}
+          {% set dTh_s = states('sensor.tankavg_dtdt_kph_sma10') %}
+          {% if dTh_s in ['unknown','unavailable','', 'None', none] %}
+            unknown
+          {% else %}
+            {% set dTh = dTh_s | float %}
+            {{ [15, [-15, (coeff * dTh)]|max]|min | round(2) }}   # clamp ±15 kW
+          {% endif %}
+
+sensor:
+  # --- Derivative keskilämpötilasta (K/h) ---
+  - platform: derivative
+    name: "tankavg_dtdt_kph"
+    unique_id: tankavg_dtdt_kph
+    source: sensor.heatpump_tank_average
+    unit_time: h
+    time_window: "00:20:00"
+    round: 4
+
+  # --- Aikakeskiarvo (10 min) derivaatalle ---
+  - platform: filter
+    name: "tankavg_dtdt_kph_sma10"
+    unique_id: tankavg_dtdt_kph_sma10
+    entity_id: sensor.tankavg_dtdt_kph
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:10:00"
+        precision: 4
+
+  # --- Häviöenergian integraatio (valinnainen) ---
+  - platform: integration
+    name: "Tank Loss Energy Daily"
+    unique_id: tank_loss_energy_daily
+    source: sensor.tank_loss_power_kw
+    unit_time: h
+    method: left
+    round: 3
+    unit_prefix: k

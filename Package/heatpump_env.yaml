@@ -1,0 +1,45 @@
+# Heatpump – Environment aliases (Tech Room + RSSI)
+# v2-versio: käyttää uniikkeja nimiä → entity_id:t eivät törmää vanhoihin "restored" entiteetteihin.
+
+template:
+  - sensor:
+      # DHT22 – lämpötila (v2)
+      - name: "Heatpump Room Temperature v2"
+        unique_id: heatpump_room_temperature_v2_unique
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {{ states('sensor.techroom_esp32_tech_room_temperature') | float(0) | round(1) }}
+
+      # DHT22 – kosteus (v2)
+      - name: "Heatpump Room Humidity v2"
+        unique_id: heatpump_room_humidity_v2_unique
+        unit_of_measurement: "%"
+        device_class: humidity
+        state_class: measurement
+        state: >
+          {{ states('sensor.techroom_esp32_tech_room_humidity') | float(0) | round(1) }}
+
+      # RSSI – valitsee ensimmäisen toimivan kandidaatin (v2)
+      - name: "Heatpump RSSI v2"
+        unique_id: heatpump_rssi_alias_v2_unique
+        unit_of_measurement: "dBm"
+        device_class: signal_strength
+        state_class: measurement
+        icon: mdi:wifi
+        state: >
+          {% set candidates = [
+            'sensor.techroom_heatpump_heatpump_rssi',
+            'sensor.techroom_esp32_heatpump_rssi',
+            'sensor.heatpump_rssi'
+          ] %}
+          {% set out = none %}
+          {% for e in candidates %}
+            {% set v = states(e) %}
+            {% if v not in ['unknown','unavailable','','None', none] %}
+              {% set out = v|float(0) %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          {{ out if out is not none else 0 }}

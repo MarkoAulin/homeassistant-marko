@@ -1,0 +1,43 @@
+# /config/packages/heatpump_tank_dedt_v4.yaml
+# Tank dE/dt (kW) – minimal, erillinen, varma
+# - käyttää olemassa olevaa SMA-derivaattaa: sensor.tankavg_dtdt_kph_sma10
+# - ja varaajan tilavuutta: input_number.tank_volume_l
+# - uusi entiteetti + unique_id → ei törmää aiempiin "restored" entsoihin
+
+template:
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.tankavg_dtdt_kph_sma10
+          - input_number.tank_volume_l
+      - platform: time_pattern
+        minutes: "/1"
+    sensor:
+      - name: "Tank Energy Change (kW) v4"
+        unique_id: tank_energy_change_kw_v4
+        unit_of_measurement: "kW"
+        device_class: power
+        state: >
+          {% set dTh_s = states('sensor.tankavg_dtdt_kph_sma10') %}
+          {% set V_s   = states('input_number.tank_volume_l') %}
+          {% if dTh_s in ['unknown','unavailable','','None', none] or V_s in ['unknown','unavailable','','None', none] %}
+            unknown
+          {% else %}
+            {% set dTh = dTh_s | float(0) %}
+            {% set V   = V_s   | float(0) %}
+            {% if V == 0 %}
+              unknown
+            {% else %}
+              {% set coeff = 1.16 * (V / 1000) %}
+              {{ [15, [-15, (coeff * dTh)]|max]|min | round(2) }}
+            {% endif %}
+          {% endif %}
+        attributes:
+          inputs_ok: >
+            {{
+              (states('sensor.tankavg_dtdt_kph_sma10') not in ['unknown','unavailable','','None', none]) and
+              (states('input_number.tank_volume_l')       not in ['unknown','unavailable','','None', none])
+            }}
+          dtdt_kph_sma10: "{{ states('sensor.tankavg_dtdt_kph_sma10') }}"
+          volume_l: "{{ states('input_number.tank_volume_l') }}"
+          coeff_kwh_per_k: "{{ (1.16 * (states('input_number.tank_volume_l')|float(0)/1000)) | round(3) }}"

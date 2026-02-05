@@ -1,0 +1,103 @@
+# /config/packages/heatpump_runs.yaml
+# Käyntimittarit v2 + v3:
+# - v2: Last Run/Off Started timestamp + history_stats (kuten ennen, toimii)
+# - v3: Last Run Time (min) ja Last Off Time (min) TRIGGER-TEMPLATElla (uudet nimet) → varma luonti
+
+template:
+  # --- Aikaleimat: koska ON alkoi ---
+  - trigger:
+      - platform: state
+        entity_id: binary_sensor.heatpump_running
+        to: "on"
+    sensor:
+      - name: "Heatpump Last Run Started v2"
+        unique_id: heatpump_last_run_started_v2
+        device_class: timestamp
+        state: "{{ now().isoformat() }}"
+
+  # --- Aikaleimat: koska OFF alkoi ---
+  - trigger:
+      - platform: state
+        entity_id: binary_sensor.heatpump_running
+        to: "off"
+    sensor:
+      - name: "Heatpump Last Off Started v2"
+        unique_id: heatpump_last_off_started_v2
+        device_class: timestamp
+        state: "{{ now().isoformat() }}"
+
+  # --- KESTOT v3 (TRIGGER-TEMPLATE): päivittyy 1/min ja kun lähteet vaihtuvat ---
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: state
+        entity_id:
+          - sensor.heatpump_last_run_started_v2
+          - sensor.heatpump_last_off_started_v2
+          - binary_sensor.heatpump_running
+    sensor:
+      - name: "Heatpump Last Run Time (min) v3"
+        unique_id: heatpump_last_run_time_min_v3
+        unit_of_measurement: "min"
+        icon: mdi:timer-sand
+        state_class: measurement
+        state: >
+          {% set ts = states('sensor.heatpump_last_run_started_v2') %}
+          {% if ts in ['unknown','unavailable','', 'None', none] or not is_state('binary_sensor.heatpump_running','on') %}
+            0
+          {% else %}
+            {% set t = as_datetime(ts) %}
+            {{ ((now() - t).total_seconds() / 60) | round(1) if t else 0 }}
+          {% endif %}
+
+      - name: "Heatpump Last Off Time (min) v3"
+        unique_id: heatpump_last_off_time_min_v3
+        unit_of_measurement: "min"
+        icon: mdi:timer-sand-complete
+        state_class: measurement
+        state: >
+          {% set ts = states('sensor.heatpump_last_off_started_v2') %}
+          {% if ts in ['unknown','unavailable','', 'None', none] or not is_state('binary_sensor.heatpump_running','off') %}
+            0
+          {% else %}
+            {% set t = as_datetime(ts) %}
+            {{ ((now() - t).total_seconds() / 60) | round(1) if t else 0 }}
+          {% endif %}
+
+  # --- Johdetut dashboard-sensorit: start count ja avg run time (min) v2 ---
+  - sensor:
+      - name: "Heatpump Start Count v2"
+        unique_id: heatpump_start_count_v2
+        icon: mdi:counter
+        state_class: measurement
+        state: "{{ states('sensor.hp_kaynteja_tanaan_v2') | int(0) }}"
+
+      - name: "Heatpump Avg Run Time v2"
+        unique_id: heatpump_avg_run_time_v2
+        unit_of_measurement: "min"
+        icon: mdi:timer-outline
+        state_class: measurement
+        state: >
+          {% set hours = states('sensor.hp_kayntiaika_tanaan_h_v2') | float(0) %}
+          {% set starts = states('sensor.hp_kaynteja_tanaan_v2') | int(0) %}
+          {{ ((hours * 60) / starts) | round(1) if starts > 0 else 0 }}
+
+# --- Päivän käynnit ja ON-aika — history_stats (edellyttää recorder-dataa) ---
+sensor:
+  - platform: history_stats
+    name: "HP käyntejä tänään v2"
+    unique_id: hp_kaynteja_tanaan_v2
+    entity_id: binary_sensor.heatpump_running
+    state: "on"
+    type: count
+    start: "{{ today_at('00:00:00') }}"
+    end: "{{ now() }}"
+
+  - platform: history_stats
+    name: "HP käyntiaika tänään (h) v2"
+    unique_id: hp_kayntiaika_tanaan_h_v2
+    entity_id: binary_sensor.heatpump_running
+    state: "on"
+    type: time
+    start: "{{ today_at('00:00:00') }}"
+    end: "{{ now() }}"
