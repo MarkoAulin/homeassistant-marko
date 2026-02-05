@@ -1,0 +1,50 @@
+template:
+  - sensor:
+
+      ####################################################################
+      # UFH – muut tilat (perusanturit ESPHome:lta)
+      ####################################################################
+
+      - name: "UFH muut tilat meno"
+        unique_id: ufh_other_supply_alias
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.ufh_muut_tilat_meno') }}"
+
+      - name: "UFH muut tilat paluu"
+        unique_id: ufh_other_return_alias
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.ufh_muut_tilat_paluu') }}"
+
+      ####################################################################
+      # ΔT = meno - paluu
+      ####################################################################
+      - name: "UFH muut tilat Delta T"
+        unique_id: ufh_other_delta_t
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set s = states('sensor.ufh_muut_tilat_meno')|float(0) %}
+          {% set r = states('sensor.ufh_muut_tilat_paluu')|float(0) %}
+          {{ (s - r)|round(2) }}
+
+      ####################################################################
+      # UFH muut tilat teho (kW)
+      # P = 1.16 × virtaus (m3/h) × ΔT
+      #
+      # Käytetään samaa virtausta kuin kosteilla tiloilla, HA helper:
+      # input_number.hp_virtaus
+      ####################################################################
+      - name: "UFH muut tilat teho"
+        unique_id: ufh_other_power_kw
+        unit_of_measurement: "kW"
+        device_class: power
+        state: >
+          {% set flow = states('input_number.hp_virtaus')|float(0) %}
+          {% set dt = states('sensor.ufh_muut_tilat_delta_t')|float(0) %}
+          {% if flow > 0.05 and dt > 0 %}
+            {{ (1.16 * flow * dt)|round(2) }}
+          {% else %}
+            0
+          {% endif %}
