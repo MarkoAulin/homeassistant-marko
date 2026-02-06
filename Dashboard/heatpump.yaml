@@ -215,10 +215,7 @@ views:
         title: "Kosteat tilat – Teho / Ulkolämpö (suhdeluku)"
         chart_type: line
         days_to_show: 3
-        stat_types:
-          - mean
-          - min
-          - max
+        stat_types: [mean, min, max]
         entities:
           - entity: sensor.ufh_wet_heat_vs_outdoor
             name: "Teho suhteessa ulkolämpötilaan"
@@ -437,8 +434,7 @@ views:
           - binary_sensor.hp_alert_brine_dt_high
           - binary_sensor.hp_alert_ufh_dt_low_wet
           - binary_sensor.hp_alert_ufh_dt_low_main
-        state_filter:
-          - "on"
+        state_filter: [ "on" ]
 
       # Hälytyshistoria 7 vrk
       - type: logbook
