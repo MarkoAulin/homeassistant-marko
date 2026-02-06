@@ -1,50 +1,88 @@
+# packages/ufh_other.yaml
+# UFH – Muut tilat (v2): meno/paluu/ΔT/teho
+# Lähteet etsitään friendly_name:n perusteella (varmatoiminen, vaikka entity_id olisi muotoutunut eri tavalla)
+
 template:
   - sensor:
-
-      ####################################################################
-      # UFH – muut tilat (perusanturit ESPHome:lta)
-      ####################################################################
-
-      - name: "UFH muut tilat meno"
-        unique_id: ufh_other_supply_alias
+      # --- MENO (°C) -> alias v2 ---
+      - name: "UFH muut tilat meno (v2)"
+        unique_id: heatpump_ufh_main_supply_v2
         device_class: temperature
+        state_class: measurement
         unit_of_measurement: "°C"
-        state: "{{ states('sensor.ufh_muut_tilat_meno') }}"
+        state: >-
+          {% set src = states.sensor
+                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat meno')
+                        | map(attribute='entity_id') | list | first %}
+          {{ states(src) | float(default=nan) }}
+        availability: >-
+          {% set src = states.sensor
+                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat meno')
+                        | map(attribute='entity_id') | list | first %}
+          {{ src is string and states(src) | is_number }}
 
-      - name: "UFH muut tilat paluu"
-        unique_id: ufh_other_return_alias
+      # --- PALUU (°C) -> alias v2 ---
+      - name: "UFH muut tilat paluu (v2)"
+        unique_id: heatpump_ufh_main_return_v2
         device_class: temperature
+        state_class: measurement
         unit_of_measurement: "°C"
-        state: "{{ states('sensor.ufh_muut_tilat_paluu') }}"
+        state: >-
+          {% set src = states.sensor
+                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat paluu')
+                        | map(attribute='entity_id') | list | first %}
+          {{ states(src) | float(default=nan) }}
+        availability: >-
+          {% set src = states.sensor
+                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat paluu')
+                        | map(attribute='entity_id') | list | first %}
+          {{ src is string and states(src) | is_number }}
 
-      ####################################################################
-      # ΔT = meno - paluu
-      ####################################################################
-      - name: "UFH muut tilat Delta T"
-        unique_id: ufh_other_delta_t
+      # --- ΔT (°C) = meno - paluu ---
+      - name: "UFH muut tilat Delta T (v2)"
+        unique_id: heatpump_ufh_main_delta_t_v2
+        icon: mdi:delta
         unit_of_measurement: "°C"
         device_class: temperature
-        state: >
-          {% set s = states('sensor.ufh_muut_tilat_meno')|float(0) %}
-          {% set r = states('sensor.ufh_muut_tilat_paluu')|float(0) %}
-          {{ (s - r)|round(2) }}
+        state_class: measurement
+        state: >-
+          {% set s = states('sensor.heatpump_ufh_main_supply_v2') | float(0) %}
+          {% set r = states('sensor.heatpump_ufh_main_return_v2') | float(0) %}
+          {{ (s - r) | round(2) }}
+        availability: >-
+          {{ states('sensor.heatpump_ufh_main_supply_v2') | is_number and
+             states('sensor.heatpump_ufh_main_return_v2') | is_number }}
 
-      ####################################################################
-      # UFH muut tilat teho (kW)
-      # P = 1.16 × virtaus (m3/h) × ΔT
-      #
-      # Käytetään samaa virtausta kuin kosteilla tiloilla, HA helper:
-      # input_number.hp_virtaus
-      ####################################################################
-      - name: "UFH muut tilat teho"
-        unique_id: ufh_other_power_kw
+      # --- Hetkellinen teho (kW) = 1.163 * virtaus(m³/h) * ΔT(°C) ---
+      - name: "UFH muut tilat teho (v2)"
+        unique_id: heatpump_ufh_main_heat_power_v2
         unit_of_measurement: "kW"
         device_class: power
-        state: >
-          {% set flow = states('input_number.hp_virtaus')|float(0) %}
-          {% set dt = states('sensor.ufh_muut_tilat_delta_t')|float(0) %}
-          {% if flow > 0.05 and dt > 0 %}
-            {{ (1.16 * flow * dt)|round(2) }}
-          {% else %}
-            0
-          {% endif %}
+        state_class: measurement
+        state: >-
+          {% set q  = states('input_number.hp_ufh_main_flow')        | float(0) %}
+          {% set dt = states('sensor.heatpump_ufh_main_delta_t_v2') | float(0) %}
+          {{ (1.163 * q * dt) | round(2) }}
+        availability: >-
+          {{ states('input_number.hp_ufh_main_flow')        | is_number and
+             states('sensor.heatpump_ufh_main_delta_t_v2') | is_number }}
+
+# --- Aloitusarvo 0.73 m³/h käynnistyksessä (vain jos arvo puuttuu tai on 0) ---
+automation:
+  - id: ufh_main_flow_default_073
+    alias: "UFH main flow default 0.73 at startup"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    condition:
+      - condition: template
+        value_template: >
+          {{ states('input_number.hp_ufh_main_flow') in ['unknown','unavailable']
+             or (states('input_number.hp_ufh_main_flow')|float(0) == 0) }}
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.hp_ufh_main_flow
+        data:
+          value: 0.73
