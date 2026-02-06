@@ -1,0 +1,47 @@
+# packages/heatpump_power_display.yaml
+# Heatpump Power (display) – suodatettu P_el + UI (0 kW kun OFF), mutta "running" päätellään myös pulssista
+
+sensor:
+  # Perusnäyttö (nopea, TC=10 s)
+  - platform: filter
+    name: "Heatpump Power (display)"
+    unique_id: heatpump_power_display
+    entity_id: sensor.heat_pump_power_avg   # ESPHome: "Heat Pump Power (avg)"
+    filters:
+      - filter: lowpass
+        time_constant: 10
+        precision: 3
+
+  # Vertailusuodattimet (dashboardin "suodatinvertailu")
+  - platform: filter
+    name: "Heatpump Power (display, tc15)"
+    unique_id: heatpump_power_display_tc15
+    entity_id: sensor.heat_pump_power_avg
+    filters:
+      - filter: lowpass
+        time_constant: 15
+        precision: 3
+
+  - platform: filter
+    name: "Heatpump Power (display, tc30)"
+    unique_id: heatpump_power_display_tc30
+    entity_id: sensor.heat_pump_power_avg
+    filters:
+      - filter: lowpass
+        time_constant: 30
+        precision: 3
+
+template:
+  - sensor:
+      - name: "Heatpump Power (display, UI)"
+        unique_id: heatpump_power_display_ui
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        # Käynnissä jos pulssinopeus ≥ 1 imp/min TAI binary on ON TAI p >= 0.5 kW
+        state: >-
+          {% set p = states('sensor.heatpump_power_display')|float(0) %}
+          {% set pulses = states('sensor.hp_pulse_rate_alias')|float(0) %}
+          {% set running = (pulses >= 1) or is_state('binary_sensor.heat_pump_running','on') or (p >= 0.5) %}
+          {{ (p if running else 0) | round(3) }}
+        availability: "{{ states('sensor.heatpump_power_display')|is_number }}"
