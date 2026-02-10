@@ -1,0 +1,48 @@
+name: Combine YAML Files
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Mahdollistaa ajon käsin
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Combined File
+        run: |
+          echo "# Koostetiedosto - Kaikki konfiguraatiot" > COMBINED.md
+          echo "Päivitetty: $(date)" >> COMBINED.md
+          echo "" >> COMBINED.md
+
+          # Käydään läpi tiedostot, jotka on listattu INDEX.md:ssä tai halutut polut
+          # Voit lisätä/poistaa tiedostoja tästä listasta:
+          FILES=(
+            "configuration.yaml"
+            "Package/heatpump_calculations.yaml"
+            "Package/heatpump_utilities.yaml"
+            "automations.yaml"
+            "esphome/techroom-esp32.yaml"
+          )
+
+          for file in "${FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "## Tiedosto: $file" >> COMBINED.md
+              echo "\`\`\`yaml" >> COMBINED.md
+              cat "$file" >> COMBINED.md
+              echo "" >> COMBINED.md
+              echo "\`\`\`" >> COMBINED.md
+              echo "---" >> COMBINED.md
+            fi
+          done
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add COMBINED.md
+          git commit -m "Update combined configuration file" || echo "No changes to commit"
+          git push
