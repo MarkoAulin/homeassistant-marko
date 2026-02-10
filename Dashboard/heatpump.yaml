@@ -1,7 +1,7 @@
 title: Heat Pump
 views:
 
-  # 1) YLEISKUVA
+  # 1) YLEISKUVA testi
   - title: "Yleiskuva"
     path: overview
     icon: mdi:heat-pump
@@ -447,3 +447,4 @@ views:
           - binary_sensor.hp_alert_brine_dt_high
           - binary_sensor.hp_alert_ufh_dt_low_wet
           - binary_sensor.hp_alert_ufh_dt_low_main
+
