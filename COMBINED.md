@@ -1,5 +1,5 @@
 # Koostetiedosto - Kaikki konfiguraatiot
-Päivitetty: Tue Feb 10 17:29:48 UTC 2026
+Päivitetty: Tue Feb 10 18:26:34 UTC 2026
 
 ## Tiedosto: configuration.yaml
 ```yaml
