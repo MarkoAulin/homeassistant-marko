@@ -1,9 +1,9 @@
-name: Combine YAML Files
+name: Combine All Configs
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Mahdollistaa ajon käsin
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,35 +14,24 @@ jobs:
 
       - name: Create Combined File
         run: |
-          echo "# Koostetiedosto - Kaikki konfiguraatiot" > COMBINED.md
-          echo "Päivitetty: $(date)" >> COMBINED.md
-          echo "" >> COMBINED.md
+          echo "# KOKO PROJEKTIN KOODI - KOSTE" > PROJECT_SOURCE.md
+          echo "Generointihetki: $(date)" >> PROJECT_SOURCE.md
+          echo "" >> PROJECT_SOURCE.md
 
-          # Käydään läpi tiedostot, jotka on listattu INDEX.md:ssä tai halutut polut
-          # Voit lisätä/poistaa tiedostoja tästä listasta:
-          FILES=(
-            "configuration.yaml"
-            "Package/heatpump_calculations.yaml"
-            "Package/heatpump_utilities.yaml"
-            "automations.yaml"
-            "esphome/techroom-esp32.yaml"
-          )
-
-          for file in "${FILES[@]}"; do
-            if [ -f "$file" ]; then
-              echo "## Tiedosto: $file" >> COMBINED.md
-              echo "\`\`\`yaml" >> COMBINED.md
-              cat "$file" >> COMBINED.md
-              echo "" >> COMBINED.md
-              echo "\`\`\`" >> COMBINED.md
-              echo "---" >> COMBINED.md
-            fi
+          # Etsitään kaikki .yaml ja .conf tiedostot (paitsi itse workflow)
+          # Lisää kansioita listaan tarvittaessa
+          find . -maxdepth 3 -not -path '*/.*' \( -name "*.yaml" -o -name "*.conf" -o -name "*.md" \) | while read file; do
+            echo "### TIEDOSTO: $file" >> PROJECT_SOURCE.md
+            echo "\`\`\`yaml" >> PROJECT_SOURCE.md
+            cat "$file" >> PROJECT_SOURCE.md
+            echo "\`\`\`" >> PROJECT_SOURCE.md
+            echo "---" >> PROJECT_SOURCE.md
           done
 
       - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add COMBINED.md
-          git commit -m "Update combined configuration file" || echo "No changes to commit"
+          git add PROJECT_SOURCE.md
+          git commit -m "Update project source dump" || echo "No changes"
           git push
