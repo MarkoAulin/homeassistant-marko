@@ -1,88 +1,125 @@
-# packages/ufh_other.yaml
-# UFH – Muut tilat (v2): meno/paluu/ΔT/teho
-# Lähteet etsitään friendly_name:n perusteella (varmatoiminen, vaikka entity_id olisi muotoutunut eri tavalla)
+# packages/heatpump_ufh_other.yaml
+# UFH "Muut tilat" (v2) – supply/return/ΔT/teho; robusti lähdehaku + skip 'restored' + numeric-only + trigger
 
 template:
-  - sensor:
-      # --- MENO (°C) -> alias v2 ---
-      - name: "UFH muut tilat meno (v2)"
+  - trigger:
+      - platform: homeassistant
+        event: start
+      - platform: time_pattern
+        minutes: "/2"
+      - platform: state
+        entity_id:
+          - input_number.hp_ufh_main_flow
+          # mahdolliset raakasanturit kun päivittyvät
+          - sensor.ufh_muut_tilat_meno
+          - sensor.ufh_muut_tilat_paluu
+          - sensor.techroom_esp32_ufh_muut_tilat_meno
+          - sensor.techroom_esp32_ufh_muut_tilat_paluu
+          - sensor.esp32_ufh_muut_tilat_meno
+          - sensor.esp32_ufh_muut_tilat_paluu
+
+    sensor:
+      # ---- apusensori: valitse MAIN SUPPLY -lähde (ohita restored/unavailable)
+      - name: "UFH main supply (src id)"
+        unique_id: ufh_main_supply_src_id
+        state: >-
+          {% set by_name = states.sensor
+               | selectattr('attributes.friendly_name','equalto','UFH muut tilat meno')
+               | rejectattr('attributes.restored','equalto',true)
+               | map(attribute='entity_id') | list %}
+          {% set candidates = [
+            'sensor.techroom_esp32_ufh_muut_tilat_meno',
+            'sensor.ufh_muut_tilat_meno',
+            'sensor.esp32_ufh_muut_tilat_meno'
+          ] %}
+          {% set src = (by_name[0] if by_name|length>0 else None) %}
+          {% if not src %}
+            {% for e in candidates %}
+              {% if e in states
+                 and states(e) not in ['unknown','unavailable','','None', none]
+                 and (state_attr(e,'restored') != true) %}
+                {% set src = e %}{% break %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ src if src else 'none' }}
+
+      # ---- apusensori: valitse MAIN RETURN -lähde (ohita restored/unavailable)
+      - name: "UFH main return (src id)"
+        unique_id: ufh_main_return_src_id
+        state: >-
+          {% set by_name = states.sensor
+               | selectattr('attributes.friendly_name','equalto','UFH muut tilat paluu')
+               | rejectattr('attributes.restored','equalto',true)
+               | map(attribute='entity_id') | list %}
+          {% set candidates = [
+            'sensor.techroom_esp32_ufh_muut_tilat_paluu',
+            'sensor.ufh_muut_tilat_paluu',
+            'sensor.esp32_ufh_muut_tilat_paluu'
+          ] %}
+          {% set src = (by_name[0] if by_name|length>0 else None) %}
+          {% if not src %}
+            {% for e in candidates %}
+              {% if e in states
+                 and states(e) not in ['unknown','unavailable','','None', none]
+                 and (state_attr(e,'restored') != true) %}
+                {% set src = e %}{% break %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ src if src else 'none' }}
+
+      # --- MUUT TILAT MENO (v2) ---
+      - name: "Heatpump UFH Main Supply v2"
         unique_id: heatpump_ufh_main_supply_v2
+        unit_of_measurement: "°C"
         device_class: temperature
         state_class: measurement
-        unit_of_measurement: "°C"
         state: >-
-          {% set src = states.sensor
-                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat meno')
-                        | map(attribute='entity_id') | list | first %}
-          {{ states(src) | float(default=nan) }}
+          {% set src = states('sensor.ufh_main_supply_src_id') %}
+          {{ states(src)|float(0) if src != 'none' else 0 }}
         availability: >-
-          {% set src = states.sensor
-                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat meno')
-                        | map(attribute='entity_id') | list | first %}
-          {{ src is string and states(src) | is_number }}
+          {% set src = states('sensor.ufh_main_supply_src_id') %}
+          {{ src != 'none' and states(src) not in ['unknown','unavailable','','None', none] }}
 
-      # --- PALUU (°C) -> alias v2 ---
-      - name: "UFH muut tilat paluu (v2)"
+      # --- MUUT TILAT PALUU (v2) ---
+      - name: "Heatpump UFH Main Return v2"
         unique_id: heatpump_ufh_main_return_v2
+        unit_of_measurement: "°C"
         device_class: temperature
         state_class: measurement
-        unit_of_measurement: "°C"
         state: >-
-          {% set src = states.sensor
-                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat paluu')
-                        | map(attribute='entity_id') | list | first %}
-          {{ states(src) | float(default=nan) }}
+          {% set src = states('sensor.ufh_main_return_src_id') %}
+          {{ states(src)|float(0) if src != 'none' else 0 }}
         availability: >-
-          {% set src = states.sensor
-                        | selectattr('attributes.friendly_name','equalto','UFH muut tilat paluu')
-                        | map(attribute='entity_id') | list | first %}
-          {{ src is string and states(src) | is_number }}
+          {% set src = states('sensor.ufh_main_return_src_id') %}
+          {{ src != 'none' and states(src) not in ['unknown','unavailable','','None', none] }}
 
-      # --- ΔT (°C) = meno - paluu ---
-      - name: "UFH muut tilat Delta T (v2)"
+      # --- DELTA T (v2) ---
+      - name: "Heatpump UFH Main Delta T v2"
         unique_id: heatpump_ufh_main_delta_t_v2
-        icon: mdi:delta
         unit_of_measurement: "°C"
         device_class: temperature
+        icon: mdi:delta
         state_class: measurement
         state: >-
-          {% set s = states('sensor.heatpump_ufh_main_supply_v2') | float(0) %}
-          {% set r = states('sensor.heatpump_ufh_main_return_v2') | float(0) %}
-          {{ (s - r) | round(2) }}
+          {% set s = states('sensor.heatpump_ufh_main_supply_v2')|float(0) %}
+          {% set r = states('sensor.heatpump_ufh_main_return_v2')|float(0) %}
+          {{ (s - r)|round(2) }}
         availability: >-
-          {{ states('sensor.heatpump_ufh_main_supply_v2') | is_number and
-             states('sensor.heatpump_ufh_main_return_v2') | is_number }}
+          {{ states('sensor.heatpump_ufh_main_supply_v2') not in ['unknown','unavailable','','None', none]
+             and states('sensor.heatpump_ufh_main_return_v2') not in ['unknown','unavailable','','None', none] }}
 
-      # --- Hetkellinen teho (kW) = 1.163 * virtaus(m³/h) * ΔT(°C) ---
-      - name: "UFH muut tilat teho (v2)"
+      # --- TEHO (v2) ---
+      - name: "Heatpump UFH Main Heat Power v2"
         unique_id: heatpump_ufh_main_heat_power_v2
         unit_of_measurement: "kW"
         device_class: power
         state_class: measurement
         state: >-
-          {% set q  = states('input_number.hp_ufh_main_flow')        | float(0) %}
-          {% set dt = states('sensor.heatpump_ufh_main_delta_t_v2') | float(0) %}
-          {{ (1.163 * q * dt) | round(2) }}
+          {% set q  = states('input_number.hp_ufh_main_flow')|float(0) %}
+          {% set dt = states('sensor.heatpump_ufh_main_delta_t_v2')|float(0) %}
+          {{ (1.1611 * q * (dt if dt>0 else 0))|round(2) }}
         availability: >-
-          {{ states('input_number.hp_ufh_main_flow')        | is_number and
-             states('sensor.heatpump_ufh_main_delta_t_v2') | is_number }}
-
-# --- Aloitusarvo 0.73 m³/h käynnistyksessä (vain jos arvo puuttuu tai on 0) ---
-automation:
-  - id: ufh_main_flow_default_073
-    alias: "UFH main flow default 0.73 at startup"
-    mode: single
-    trigger:
-      - platform: homeassistant
-        event: start
-    condition:
-      - condition: template
-        value_template: >
-          {{ states('input_number.hp_ufh_main_flow') in ['unknown','unavailable']
-             or (states('input_number.hp_ufh_main_flow')|float(0) == 0) }}
-    action:
-      - service: input_number.set_value
-        target:
-          entity_id: input_number.hp_ufh_main_flow
-        data:
-          value: 0.73
+          {{ states('sensor.heatpump_ufh_main_delta_t_v2') not in ['unknown','unavailable','','None', none]
+             and (states('input_number.hp_ufh_main_flow')|float(0) > 0) }}

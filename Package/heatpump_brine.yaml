@@ -1,0 +1,26 @@
+# packages/heatpump_brine.yaml
+# Brine Delta-T display (numeric only)
+
+template:
+  - trigger:
+      - platform: homeassistant
+        event: start
+      - platform: state
+        entity_id:
+          - sensor.techroom_esp32_hp_brine_delta_t_raw
+          - sensor.techroom_esp32_hp_brine_delta_t
+      - platform: time_pattern
+        minutes: "/2"
+    sensor:
+      - name: "Heatpump Brine Delta T (display)"
+        unique_id: heatpump_brine_delta_t_display
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >-
+          {% set raw  = states('sensor.techroom_esp32_hp_brine_delta_t_raw') %}
+          {% set filt = states('sensor.techroom_esp32_hp_brine_delta_t') %}
+          {{ (raw if raw not in ['unknown','unavailable','','None', none] else filt)|float(0) | round(2) }}
+        availability: >-
+          {{ states('sensor.techroom_esp32_hp_brine_delta_t_raw') not in ['unknown','unavailable','','None', none]
+             or states('sensor.techroom_esp32_hp_brine_delta_t') not in ['unknown','unavailable','','None', none] }}

@@ -1,6 +1,5 @@
 title: Heat Pump
 views:
-
   # 1) YLEISKUVA testi
   - title: "Yleiskuva"
     path: overview
@@ -157,7 +156,7 @@ views:
 
       - type: history-graph
         title: "Varaaja – kerrokset (24 h)"
-        hours_to_show: 24
+        hours_to__show: 24
         refresh_interval: 30
         entities:
           - entity: sensor.heatpump_tank_top
@@ -210,7 +209,6 @@ views:
           - entity: sensor.outdoor_temperature_2
             name: "Ulkolämpötila (°C)"
 
-      # *** UUSI KORTTI: suhdeluku teho/ulkolämpö ***
       - type: statistics-graph
         title: "Kosteat tilat – Teho / Ulkolämpö (suhdeluku)"
         chart_type: line
@@ -347,6 +345,13 @@ views:
         severity: { green: 2.0, yellow: 0.5, red: 0 }
 
       - type: gauge
+        name: "UFH yhteensä teho (kW)"
+        entity: sensor.heatpump_ufh_total_heat_power_v2
+        min: 0
+        max: 6
+        severity: { green: 3.5, yellow: 1.0, red: 0 }
+
+      - type: gauge
         name: "Ottoteho P_el (kW)"
         entity: sensor.heatpump_power_display_ui
         min: 0
@@ -386,6 +391,36 @@ views:
             name: "LL muut tilat virtaus (m³/h)"
 
       - type: entities
+        title: "Anturivalinnan aikaohjaus"
+        show_header_toggle: false
+        entities:
+          - entity: input_select.hp_sensor_mode
+            name: "Tila (On/Auto/Off)"
+          - entity: switch.anturi_2_kaytossa
+            name: "Anturi 2 käytössä (ESPHome)"
+          - type: divider
+          - entity: input_datetime.hp_sched_start_time
+            name: "Aikaohjaus alkaa"
+          - entity: input_datetime.hp_sched_end_time
+            name: "Aikaohjaus päättyy"
+          - type: section
+            label: "Aktiiviset viikonpäivät"
+          - entity: input_boolean.hp_sched_mon
+            name: "Ma"
+          - entity: input_boolean.hp_sched_tue
+            name: "Ti"
+          - entity: input_boolean.hp_sched_wed
+            name: "Ke"
+          - entity: input_boolean.hp_sched_thu
+            name: "To"
+          - entity: input_boolean.hp_sched_fri
+            name: "Pe"
+          - entity: input_boolean.hp_sched_sat
+            name: "La"
+          - entity: input_boolean.hp_sched_sun
+            name: "Su"
+
+      - type: entities
         title: "Tank-mittarit (debug)"
         show_header_toggle: false
         entities:
@@ -401,8 +436,6 @@ views:
     path: alerts
     icon: mdi:alert-decagram
     cards:
-
-      # Asetukset
       - type: entities
         title: "Asetukset"
         show_header_toggle: false
@@ -420,13 +453,12 @@ views:
           - entity: input_number.hp_ufh_dt_min_main
             name: "UFH ΔT min (muu talo)"
 
-      # Aktiiviset hälytykset (vain ON)
       - type: entity-filter
         card:
           type: entities
           title: "Aktiiviset hälytykset (tila)"
           state_color: true
-        show_empty: false
+          show_empty: false
         entities:
           - binary_sensor.hp_alert_ufh_supply_ge_tanktop
           - binary_sensor.hp_alert_long_off_cold
@@ -436,7 +468,6 @@ views:
           - binary_sensor.hp_alert_ufh_dt_low_main
         state_filter: [ "on" ]
 
-      # Hälytyshistoria 7 vrk
       - type: logbook
         title: "Hälytyshistoria (7 vrk)"
         hours_to_show: 168
@@ -447,4 +478,3 @@ views:
           - binary_sensor.hp_alert_brine_dt_high
           - binary_sensor.hp_alert_ufh_dt_low_wet
           - binary_sensor.hp_alert_ufh_dt_low_main
-

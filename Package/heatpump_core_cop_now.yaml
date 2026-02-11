@@ -1,0 +1,25 @@
+# packages/heatpump_core_cop_now.yaml
+# Heatpump COP now – käyttää lämpötehoa P_th ja sähkötehoa P_el (avg),
+# suojattu nollajakoa vastaan (jos P_el < 0.1 → 0).
+
+template:
+  - trigger:
+      - platform: homeassistant
+        event: start
+      - platform: state
+        entity_id:
+          - sensor.heatpump_heat_power           # lämpöteho (kW)
+          - sensor.hp_power_avg_src              # P_el lähde (ks. heatpump_power_display.yaml)
+      - platform: time_pattern
+        seconds: "/30"
+    sensor:
+      - name: "Heatpump COP now"
+        unique_id: heatpump_cop_now
+        unit_of_measurement: ""
+        state: >-
+          {% set Pth = states('sensor.heatpump_heat_power')|float(0) %}
+          {% set Pel = states('sensor.hp_power_avg_src')|float(0) %}
+          {{ (Pth / Pel) | round(2) if Pel > 0.1 else 0 }}
+        availability: >-
+          {{ states('sensor.heatpump_heat_power') is number
+             and states('sensor.hp_power_avg_src') is number }}

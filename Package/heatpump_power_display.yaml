@@ -1,47 +1,87 @@
 # packages/heatpump_power_display.yaml
-# Heatpump Power (display) – suodatettu P_el + UI (0 kW kun OFF), mutta "running" päätellään myös pulssista
+# Heatpump Power (display) – suodatettu P_el + UI (0 kW kun OFF)
 
+template:
+  - trigger:
+      - platform: homeassistant
+        event: start
+      - platform: state
+        entity_id:
+          - sensor.techroom_esp32_heat_pump_power_avg
+          - sensor.heat_pump_power_avg
+          - sensor.hp_pulse_rate_alias
+          - sensor.hp_pulse_rate
+          - sensor.techroom_esp32_hp_pulse_rate
+          - binary_sensor.heatpump_running
+      - platform: time_pattern
+        seconds: "/30"
+    sensor:
+      # 1) Valitse automaattisesti ESPHome-lähde: techroom_* tai yleinen heat_pump_power_avg
+      - name: "HP power avg (src)"
+        unique_id: hp_power_avg_src
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        state: >-
+          {% set c1 = 'sensor.techroom_esp32_heat_pump_power_avg' %}
+          {% set c2 = 'sensor.heat_pump_power_avg' %}
+          {% set v1 = states(c1) %}
+          {% set v2 = states(c2) %}
+          {{ (v1 if v1 not in ['unknown','unavailable','','None', none] else v2)|float(0) }}
+        availability: >-
+          {% set c1 = 'sensor.techroom_esp32_heat_pump_power_avg' %}
+          {% set c2 = 'sensor.heat_pump_power_avg' %}
+          {% set v1 = states(c1) %}
+          {% set v2 = states(c2) %}
+          {{ v1 not in ['unknown','unavailable','','None', none]
+             or v2 not in ['unknown','unavailable','','None', none] }}
+
+      # 2) UI-näyttö: 0 kW kun OFF (mutta entiteetti on olemassa)
+      - name: "Heatpump Power (display, UI)"
+        unique_id: heatpump_power_display_ui
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        state: >-
+          {% set p = states('sensor.heatpump_power_display')|float(0) %}
+          {# pulssilähde: alias -> varalähteet #}
+          {% set pa = states('sensor.hp_pulse_rate_alias') %}
+          {% set p1 = states('sensor.hp_pulse_rate') %}
+          {% set p2 = states('sensor.techroom_esp32_hp_pulse_rate') %}
+          {% set pulses = (pa if pa not in ['unknown','unavailable','','None', none]
+                            else (p1 if p1 not in ['unknown','unavailable','','None', none]
+                                  else (p2 if p2 not in ['unknown','unavailable','','None', none]
+                                        else '0'))) | float(0) %}
+          {% set running = (pulses >= 1) or is_state('binary_sensor.heatpump_running','on') or (p >= 0.5) %}
+          {{ (p if running else 0) | round(3) }}
+        availability: >-
+          {{ states('sensor.heatpump_power_display') not in ['unknown','unavailable','','None', none] }}
+
+# Suodattimet (LPF) – käyttävät yllä olevaa lähdeanturia
 sensor:
-  # Perusnäyttö (nopea, TC=10 s)
   - platform: filter
     name: "Heatpump Power (display)"
     unique_id: heatpump_power_display
-    entity_id: sensor.heat_pump_power_avg   # ESPHome: "Heat Pump Power (avg)"
+    entity_id: sensor.hp_power_avg_src
     filters:
       - filter: lowpass
-        time_constant: 10
+        time_constant: 30
         precision: 3
 
-  # Vertailusuodattimet (dashboardin "suodatinvertailu")
   - platform: filter
     name: "Heatpump Power (display, tc15)"
     unique_id: heatpump_power_display_tc15
-    entity_id: sensor.heat_pump_power_avg
+    entity_id: sensor.hp_power_avg_src
     filters:
       - filter: lowpass
         time_constant: 15
         precision: 3
 
   - platform: filter
-    name: "Heatpump Power (display, tc30)"
-    unique_id: heatpump_power_display_tc30
-    entity_id: sensor.heat_pump_power_avg
+    name: "Heatpump Power (display, tc60)"
+    unique_id: heatpump_power_display_tc60
+    entity_id: sensor.hp_power_avg_src
     filters:
       - filter: lowpass
-        time_constant: 30
+        time_constant: 60
         precision: 3
-
-template:
-  - sensor:
-      - name: "Heatpump Power (display, UI)"
-        unique_id: heatpump_power_display_ui
-        unit_of_measurement: "kW"
-        device_class: power
-        state_class: measurement
-        # Käynnissä jos pulssinopeus ≥ 1 imp/min TAI binary on ON TAI p >= 0.5 kW
-        state: >-
-          {% set p = states('sensor.heatpump_power_display')|float(0) %}
-          {% set pulses = states('sensor.hp_pulse_rate_alias')|float(0) %}
-          {% set running = (pulses >= 1) or is_state('binary_sensor.heat_pump_running','on') or (p >= 0.5) %}
-          {{ (p if running else 0) | round(3) }}
-        availability: "{{ states('sensor.heatpump_power_display')|is_number }}"

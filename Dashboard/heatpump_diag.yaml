@@ -1,0 +1,44 @@
+title: HP Diagnoosi
+views:
+  - title: "Diagnoosi"
+    path: diag
+    icon: mdi:stethoscope
+    cards:
+      - type: entities
+        title: "HP – Diag sensoreita"
+        show_header_toggle: false
+        state_color: true
+        entities:
+          # --- SÄHKÖ & PULSSIT (AIEMMAT DIAG-ENTITEETIT) ---
+          - entity: sensor.hp_diag_pel_avg_source_id
+            name: "P_el avg – lähde (entity_id)"
+          - entity: sensor.hp_diag_pulse_source_id
+            name: "Pulssimittari – lähde (entity_id)"
+          - entity: sensor.hp_diag_ufh_main_sources
+            name: "UFH Main – lähteiden tila (Meno/Paluu OK/NOK)"
+
+          # --- UFH – RAAKALÄHTEET ---
+          - type: section
+            label: "UFH – Raakalähteet (Main / Märkätilat)"
+          - entity: sensor.ufh_diag_main_supply_raw
+            name: "Main supply RAW"
+          - entity: sensor.ufh_diag_main_return_raw
+            name: "Main return RAW"
+          - entity: sensor.ufh_diag_wet_supply_raw
+            name: "Wet supply RAW"
+          - entity: sensor.ufh_diag_wet_return_raw_tech
+            name: "Wet return RAW (techroom)"
+          - entity: sensor.ufh_diag_wet_return_raw_alias
+            name: "Wet return RAW (alias)"
+
+          # --- UFH – OK/NOK LIPUT ---
+          - type: section
+            label: "UFH – OK/NOK (Boolean)"
+          - entity: binary_sensor.ufh_diag_main_supply_ok
+            name: "Main supply OK"
+          - entity: binary_sensor.ufh_diag_main_return_ok
+            name: "Main return OK"
+          - entity: binary_sensor.ufh_diag_wet_supply_ok
+            name: "Wet supply OK"
+          - entity: binary_sensor.ufh_diag_wet_return_ok_any
+            name: "Wet return OK (any)"

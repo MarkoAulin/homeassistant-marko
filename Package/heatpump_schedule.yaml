@@ -1,0 +1,146 @@
+# packages/heatpump_schedule.yaml
+# HP anturireleiden aikaohjaus + ON/AUTO/OFF -tila.
+# Ohjaa ESPHome-kytkintä "Anturi 2 käytössä".
+# Jos entity_id on muuttunut, tämä paketti löytää sen myös friendly_namella.
+
+input_select:
+  hp_sensor_mode:
+    name: "HP anturin valintatila"
+    options: ["Auto", "On", "Off"]
+    icon: mdi:toggle-switch
+
+input_datetime:
+  hp_sched_start_time:
+    name: "Aikaohjaus alkaa"
+    has_time: true
+    has_date: false
+    initial: "22:00:00"
+  hp_sched_end_time:
+    name: "Aikaohjaus päättyy"
+    has_time: true
+    has_date: false
+    initial: "06:00:00"
+
+input_boolean:
+  hp_sched_mon: { name: "Ma", icon: mdi:calendar }
+  hp_sched_tue: { name: "Ti", icon: mdi:calendar }
+  hp_sched_wed: { name: "Ke", icon: mdi:calendar }
+  hp_sched_thu: { name: "To", icon: mdi:calendar }
+  hp_sched_fri: { name: "Pe", icon: mdi:calendar }
+  hp_sched_sat: { name: "La", icon: mdi:calendar }
+  hp_sched_sun: { name: "Su", icon: mdi:calendar }
+
+template:
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: state
+        entity_id:
+          - input_datetime.hp_sched_start_time
+          - input_datetime.hp_sched_end_time
+          - input_boolean.hp_sched_mon
+          - input_boolean.hp_sched_tue
+          - input_boolean.hp_sched_wed
+          - input_boolean.hp_sched_thu
+          - input_boolean.hp_sched_fri
+          - input_boolean.hp_sched_sat
+          - input_boolean.hp_sched_sun
+    binary_sensor:
+      - name: "HP schedule active"
+        unique_id: hp_schedule_active
+        state: >-
+          {% set wd = now().weekday() %}  {# 0=Mon ... 6=Sun #}
+          {% set days = [
+              is_state('input_boolean.hp_sched_mon','on'),
+              is_state('input_boolean.hp_sched_tue','on'),
+              is_state('input_boolean.hp_sched_wed','on'),
+              is_state('input_boolean.hp_sched_thu','on'),
+              is_state('input_boolean.hp_sched_fri','on'),
+              is_state('input_boolean.hp_sched_sat','on'),
+              is_state('input_boolean.hp_sched_sun','on')
+          ] %}
+          {% set enabled_today = days[wd] %}
+          {% set s = states('input_datetime.hp_sched_start_time')[0:5] %}
+          {% set e = states('input_datetime.hp_sched_end_time')[0:5] %}
+          {% set nowh = now().strftime('%H:%M') %}
+          {% if s <= e %}
+            {{ enabled_today and (s <= nowh < e) }}
+          {% else %}
+            {{ enabled_today and (nowh >= s or nowh < e) }}  {# yön yli #}
+          {% endif %}
+
+automation:
+  - id: hp_sensor_mode_apply
+    alias: "HP anturivalinta – tilaohjaus releelle"
+    mode: restart
+    variables:
+      hp_switch_by_name: >-
+        {{ states.switch
+           | selectattr('attributes.friendly_name','equalto','Anturi 2 käytössä')
+           | map(attribute='entity_id') | list }}
+      hp_sensor_switch: >-
+        {{ (hp_switch_by_name[0] if hp_switch_by_name|length>0 else 'switch.anturi_2_kaytossa') }}
+    trigger:
+      - platform: state
+        entity_id:
+          - input_select.hp_sensor_mode
+          - binary_sensor.hp_schedule_active
+      - platform: time_pattern
+        minutes: "/1"
+    action:
+      - choose:
+          - conditions: "{{ is_state('input_select.hp_sensor_mode','On') }}"
+            sequence:
+              - condition: template
+                value_template: "{{ hp_sensor_switch in states }}"
+              - service: switch.turn_on
+                target: { entity_id: "{{ hp_sensor_switch }}" }
+
+          - conditions: "{{ is_state('input_select.hp_sensor_mode','Off') }}"
+            sequence:
+              - condition: template
+                value_template: "{{ hp_sensor_switch in states }}"
+              - service: switch.turn_off
+                target: { entity_id: "{{ hp_sensor_switch }}" }
+
+          - conditions: "{{ is_state('input_select.hp_sensor_mode','Auto') }}"
+            sequence:
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: binary_sensor.hp_schedule_active
+                        state: "on"
+                      - condition: template
+                        value_template: "{{ hp_sensor_switch in states }}"
+                    sequence:
+                      - service: switch.turn_on
+                        target: { entity_id: "{{ hp_sensor_switch }}" }
+                default:
+                  - condition: template
+                    value_template: "{{ hp_sensor_switch in states }}"
+                  - service: switch.turn_off
+                    target: { entity_id: "{{ hp_sensor_switch }}" }
+
+  # Jos kytkintä ei löydy, tee pysyvä ilmoitus (näkyy System → Notifications)
+  - id: hp_sensor_switch_missing_notice
+    alias: "HP anturivalinta – kytkintä ei löydy"
+    mode: queued
+    trigger:
+      - platform: state
+        entity_id: input_select.hp_sensor_mode
+    condition:
+      - condition: template
+        value_template: >-
+          {{ not (states.switch
+            | selectattr('attributes.friendly_name','equalto','Anturi 2 käytössä')
+            | list | length > 0)
+            and ('switch.anturi_2_kaytossa' not in states) }}
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Anturi 2 käytössä -kytkintä ei löydy"
+          message: >-
+            Aikaohjaus ei voi ohjata releitä, koska kumpaakaan ei löytynyt:
+            (a) switch entity, jonka friendly_name on 'Anturi 2 käytössä', eikä
+            (b) switch.anturi_2_kaytossa.
+            Avaa ESPHome-laitteen switch-entityn nimi tai kerro nykyinen entity_id.

@@ -1,0 +1,72 @@
+# packages/heatpump_ufh_diag_probe.yaml
+# Diagnoosi UFH-lähteille: raakatilat ja OK/NOK -liput + käynnistysilmoitus
+
+template:
+  - trigger:
+      - platform: homeassistant
+        event: start
+      - platform: state
+        entity_id:
+          - sensor.ufh_muut_tilat_meno
+          - sensor.ufh_muut_tilat_paluu
+          - sensor.techroom_esp32_ll_kosteat_tilat_meno
+          - sensor.techroom_esp32_ll_kosteat_tilat_paluu
+          - sensor.ll_kosteat_tilat_paluu
+      - platform: time_pattern
+        minutes: "/2"
+    sensor:
+      - name: "UFH diag – Main supply RAW"
+        unique_id: ufh_diag_main_supply_raw
+        state: "{{ states('sensor.ufh_muut_tilat_meno') }}"
+      - name: "UFH diag – Main return RAW"
+        unique_id: ufh_diag_main_return_raw
+        state: "{{ states('sensor.ufh_muut_tilat_paluu') }}"
+      - name: "UFH diag – Wet supply RAW"
+        unique_id: ufh_diag_wet_supply_raw
+        state: "{{ states('sensor.techroom_esp32_ll_kosteat_tilat_meno') }}"
+      - name: "UFH diag – Wet return RAW (techroom)"
+        unique_id: ufh_diag_wet_return_raw_tech
+        state: "{{ states('sensor.techroom_esp32_ll_kosteat_tilat_paluu') }}"
+      - name: "UFH diag – Wet return RAW (alias)"
+        unique_id: ufh_diag_wet_return_raw_alias
+        state: "{{ states('sensor.ll_kosteat_tilat_paluu') }}"
+
+    binary_sensor:
+      - name: "UFH diag – Main supply OK"
+        unique_id: ufh_diag_main_supply_ok
+        state: >-
+          {{ states('sensor.ufh_muut_tilat_meno') not in ['unknown','unavailable','','None', none] }}
+      - name: "UFH diag – Main return OK"
+        unique_id: ufh_diag_main_return_ok
+        state: >-
+          {{ states('sensor.ufh_muut_tilat_paluu') not in ['unknown','unavailable','','None', none] }}
+      - name: "UFH diag – Wet supply OK"
+        unique_id: ufh_diag_wet_supply_ok
+        state: >-
+          {{ states('sensor.techroom_esp32_ll_kosteat_tilat_meno') not in ['unknown','unavailable','','None', none] }}
+      - name: "UFH diag – Wet return OK (any)"
+        unique_id: ufh_diag_wet_return_ok_any
+        state: >-
+          {{ states('sensor.techroom_esp32_ll_kosteat_tilat_paluu') not in ['unknown','unavailable','','None', none]
+             or states('sensor.ll_kosteat_tilat_paluu') not in ['unknown','unavailable','','None', none] }}
+
+automation:
+  - id: ufh_diag_startup_notice
+    alias: "UFH diag – käynnistysilmoitus"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - delay: "00:00:20"
+      - variables:
+          main_s_ok: "{{ is_state('binary_sensor.ufh_diag_main_supply_ok','on') }}"
+          main_r_ok: "{{ is_state('binary_sensor.ufh_diag_main_return_ok','on') }}"
+          wet_s_ok:  "{{ is_state('binary_sensor.ufh_diag_wet_supply_ok','on') }}"
+          wet_r_ok:  "{{ is_state('binary_sensor.ufh_diag_wet_return_ok_any','on') }}"
+      - service: persistent_notification.create
+        data:
+          title: "UFH diag – lähteet"
+          message: >-
+            Main supply OK: {{ main_s_ok }}, Main return OK: {{ main_r_ok }}.
+            Wet supply OK:  {{ wet_s_ok }},  Wet return (any) OK: {{ wet_r_ok }}.

@@ -1,0 +1,74 @@
+# packages/heatpump_diag_ufh.yaml
+# Diagnoosi: UFH "muut tilat" ja P_el -lähdesensorit + käynnistysilmoitus.
+
+template:
+  - trigger:
+      - platform: homeassistant
+        event: start
+      - platform: state
+        entity_id:
+          - sensor.ufh_muut_tilat_meno
+          - sensor.ufh_muut_tilat_paluu
+          - sensor.techroom_esp32_heat_pump_power_avg
+          - sensor.heat_pump_power_avg
+          - sensor.hp_pulse_rate_alias
+          - sensor.hp_pulse_rate
+          - sensor.techroom_esp32_hp_pulse_rate
+      - platform: time_pattern
+        minutes: "/2"
+    sensor:
+      - name: "HP diag – UFH Main sources"
+        unique_id: hp_diag_ufh_main_sources
+        state: >-
+          {% set s = states('sensor.ufh_muut_tilat_meno') %}
+          {% set r = states('sensor.ufh_muut_tilat_paluu') %}
+          Meno={{ 'OK' if s not in ['unknown','unavailable','','None', none] else 'NOK' }},
+          Paluu={{ 'OK' if r not in ['unknown','unavailable','','None', none] else 'NOK' }}
+        icon: mdi:information
+
+      - name: "HP diag – P_el avg source id"
+        unique_id: hp_diag_pel_avg_source_id
+        state: >-
+          {% set c1 = 'sensor.techroom_esp32_heat_pump_power_avg' %}
+          {% set c2 = 'sensor.heat_pump_power_avg' %}
+          {% if c1 in states %}
+            {{ c1 }}
+          {% elif c2 in states %}
+            {{ c2 }}
+          {% else %}
+            none
+          {% endif %}
+        icon: mdi:information
+
+      - name: "HP diag – pulse source id"
+        unique_id: hp_diag_pulse_source_id
+        state: >-
+          {% set c = ['sensor.hp_pulse_rate_alias','sensor.hp_pulse_rate','sensor.techroom_esp32_hp_pulse_rate'] %}
+          {% for e in c %}
+            {% if e in states and states(e) not in ['unknown','unavailable','','None', none] %}
+              {{ e }}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+        icon: mdi:information
+
+automation:
+  - id: hp_diag_startup_notify
+    alias: "HP diag – käynnistysilmoitus"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - delay: "00:00:20"
+      - variables:
+          pel_src: "{{ states('sensor.hp_diag_pel_avg_source_id') }}"
+          ufh_meno_ok: "{{ states('sensor.ufh_muut_tilat_meno') not in ['unknown','unavailable','','None', none] }}"
+          ufh_paluu_ok: "{{ states('sensor.ufh_muut_tilat_paluu') not in ['unknown','unavailable','','None', none] }}"
+      - service: persistent_notification.create
+        data:
+          title: "HP diag – käynnistys"
+          message: >-
+            P_el avg lähde: {{ pel_src }}.
+            UFH 'muut tilat' meno OK? {{ ufh_meno_ok }},
+            paluu OK? {{ ufh_paluu_ok }}.
