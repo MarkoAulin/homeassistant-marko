@@ -40,7 +40,7 @@ views:
             name: "Heatpump Tank Average"
           - entity: sensor.heatpump_tank_energy_kwh_v2
             name: "Tank Energy (kWh)"
-          - entity: sensor.tank_energy_change_kw_v4
+          - entity: sensor.tank_energy_change_kw_simple
             name: "Tank Energy Change (kW)"
 
       - type: entities
@@ -299,7 +299,7 @@ views:
             name: "P_th (kW)"
           - entity: sensor.heatpump_ufh_total_heat_power_v2
             name: "UFH total (kW)"
-          - entity: sensor.tank_energy_change_kw_v4
+          - entity: sensor.tank_energy_change_kw_simple
             name: "dE_tank/dt (kW)"
 
       - type: history-graph

@@ -1,5 +1,5 @@
 # packages/heatpump_tank.yaml
-# Tank-aliaset & energiaderivaatta (numeric-only + triggers)
+# Tank-aliaset & Tank Average & dE/dt – numeric-only + triggers
 
 template:
   - trigger:
@@ -22,7 +22,7 @@ template:
         device_class: temperature
         state_class: measurement
         state: "{{ states('sensor.techroom_esp32_varaaja_yla')|float(0)|round(1) }}"
-        availability: >-
+        availability: >
           {{ states('sensor.techroom_esp32_varaaja_yla') not in ['unknown','unavailable','','None', none] }}
 
       - name: "Heatpump Tank Mid Top"
@@ -31,7 +31,7 @@ template:
         device_class: temperature
         state_class: measurement
         state: "{{ states('sensor.techroom_esp32_varaaja_keski_yla')|float(0)|round(1) }}"
-        availability: >-
+        availability: >
           {{ states('sensor.techroom_esp32_varaaja_keski_yla') not in ['unknown','unavailable','','None', none] }}
 
       - name: "Heatpump Tank Mid Bottom"
@@ -40,7 +40,7 @@ template:
         device_class: temperature
         state_class: measurement
         state: "{{ states('sensor.techroom_esp32_varaaja_keski_ala')|float(0)|round(1) }}"
-        availability: >-
+        availability: >
           {{ states('sensor.techroom_esp32_varaaja_keski_ala') not in ['unknown','unavailable','','None', none] }}
 
       - name: "Heatpump Tank Bottom"
@@ -49,24 +49,44 @@ template:
         device_class: temperature
         state_class: measurement
         state: "{{ states('sensor.techroom_esp32_varaaja_ala')|float(0)|round(1) }}"
-        availability: >-
+        availability: >
           {{ states('sensor.techroom_esp32_varaaja_ala') not in ['unknown','unavailable','','None', none] }}
 
-      # dE/dt (kW) yksinkertainen: V(L), 1.16 * (V/1000) * dT/dt (K/h)
+      # Tank Average (numeric-only): saatavilla vain kun kaikki neljä on numeroita
+      - name: "Heatpump Tank Average"
+        unique_id: heatpump_tank_average
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ 
+            states('sensor.heatpump_tank_top') not in ['unknown','unavailable','','None', none] and
+            states('sensor.heatpump_tank_mid_top') not in ['unknown','unavailable','','None', none] and
+            states('sensor.heatpump_tank_mid_bottom') not in ['unknown','unavailable','','None', none] and
+            states('sensor.heatpump_tank_bottom') not in ['unknown','unavailable','','None', none]
+          }}
+        state: >
+          {% set top = states('sensor.heatpump_tank_top')|float(0) %}
+          {% set mt  = states('sensor.heatpump_tank_mid_top')|float(0) %}
+          {% set mb  = states('sensor.heatpump_tank_mid_bottom')|float(0) %}
+          {% set bot = states('sensor.heatpump_tank_bottom')|float(0) %}
+          {{ ((top + mt + mb + bot) / 4) | round(2) }}
+
+      # dE/dt (kW) yksinkertainen
       - name: "Tank Energy Change (kW) simple"
         unique_id: tank_energy_change_kw_simple
         unit_of_measurement: "kW"
         device_class: power
-        state: >-
+        state: >
           {% set V = states('input_number.tank_volume_l')|float(0) %}
           {% set coeff = 1.16 * (V/1000) %}
           {% set dTh_s = states('sensor.tankavg_dtdt_kph_sma10') %}
           {% if dTh_s in ['unknown','unavailable','', 'None', none] %}
             {{ 0|float }}
           {% else %}
-            {% set dTh = dTh_s|float(0) %}
-            {{ [15, [-15, (coeff * dTh)]|max]|min | round(2) }}
+            {% set dTh = dTh_s | float(0) %}
+            {{ [15, [-15, (coeff * dTh)]|max]|min | round(2) }}  {# clamp ±15 kW #}
           {% endif %}
-        availability: >-
+        availability: >
           {{ states('sensor.tankavg_dtdt_kph_sma10') not in ['unknown','unavailable','', 'None', none]
              and states('input_number.tank_volume_l') is number }}
