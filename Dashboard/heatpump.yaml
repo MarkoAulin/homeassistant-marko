@@ -1,6 +1,6 @@
 title: Heat Pump
 views:
-  # 1) YLEISKUVA testi
+  # 1) YLEISKUVA
   - title: "Yleiskuva"
     path: overview
     icon: mdi:heat-pump
@@ -9,54 +9,52 @@ views:
         title: "Hetkellinen"
         show_header_toggle: false
         entities:
-          - entity: sensor.heatpump_power_display_ui
-            name: "Heatpump Power (kW)"
-          - entity: sensor.heatpump_heat_power
-            name: "Heatpump Heat Power (kW)"
-          - entity: sensor.hp_pulse_rate_alias
-            name: "HP Pulse Rate (imp/min)"
-          - entity: sensor.heatpump_delta_t
-            name: "Heatpump Delta T (°C)"
-          - entity: sensor.heatpump_brine_delta_t_display
-            name: "Heatpump Brine Delta T (°C)"
-          - entity: sensor.heatpump_cop_display
-            name: "Heatpump COP (display)"
+          - entity: sensor.techroom_esp32_heat_pump_power
+            name: "Ottoteho (kW)"
+          - entity: sensor.techroom_esp32_hp_lampoteho
+            name: "Lämpöteho (kW)"
+          - entity: sensor.techroom_esp32_hp_pulse_rate
+            name: "Pulssit (imp/min)"
+          - entity: sensor.techroom_esp32_hp_delta_t
+            name: "Latauspiiri ΔT (°C)"
+          - entity: sensor.techroom_esp32_hp_brine_delta_t
+            name: "Maaliuos ΔT (°C)"
+          - entity: sensor.techroom_esp32_heat_pump_cop
+            name: "COP (Hetkellinen)"
           - entity: sensor.heatpump_scop_instant
-            name: "Heatpump SCOP (instant)"
+            name: "SCOP (System)"
 
       - type: entities
         title: "Varaaja (kerrokset)"
         show_header_toggle: false
         entities:
-          - entity: sensor.heatpump_tank_top
-            name: "Heatpump Tank Top"
-          - entity: sensor.heatpump_tank_mid_top
-            name: "Heatpump Tank Mid Top"
-          - entity: sensor.heatpump_tank_mid_bottom
-            name: "Heatpump Tank Mid Bottom"
-          - entity: sensor.heatpump_tank_bottom
-            name: "Heatpump Tank Bottom"
+          - entity: sensor.techroom_esp32_varaaja_yla
+            name: "Varaaja Ylä"
+          - entity: sensor.techroom_esp32_varaaja_keski_yla
+            name: "Varaaja Keski-Ylä"
+          - entity: sensor.techroom_esp32_varaaja_keski_ala
+            name: "Varaaja Keski-Ala"
+          - entity: sensor.techroom_esp32_varaaja_ala
+            name: "Varaaja Ala"
           - entity: sensor.heatpump_tank_average
-            name: "Heatpump Tank Average"
-          - entity: sensor.heatpump_tank_energy_kwh_v2
-            name: "Tank Energy (kWh)"
-          - entity: sensor.tank_energy_change_kw_simple
-            name: "Tank Energy Change (kW)"
+            name: "Varaajan Keskiarvo"
+          - entity: sensor.heatpump_tank_energy_kwh
+            name: "Varaajan Energia (kWh)"
+          - entity: sensor.tank_energy_change_kw
+            name: "Energian muutosnopeus (kW)"
 
       - type: entities
         title: "Käynnit & analytiikka"
         show_header_toggle: false
         entities:
-          - entity: binary_sensor.heatpump_running
-            name: "Heatpump Running"
-          - entity: sensor.heatpump_last_run_time_min_v3
-            name: "Heatpump Last Run Time (min)"
-          - entity: sensor.heatpump_last_off_time_min_v3
-            name: "Heatpump Last Off Time (min)"
-          - entity: sensor.heatpump_start_count_v2
-            name: "Heatpump Start Count (today)"
-          - entity: sensor.heatpump_avg_run_time_v2
-            name: "Heatpump Avg Run Time (today, min)"
+          - entity: binary_sensor.techroom_esp32_heat_pump_running
+            name: "Pumppu käynnissä"
+          - entity: sensor.heatpump_last_run_time
+            name: "Edellinen käynti (min)"
+          - entity: sensor.heatpump_start_count
+            name: "Käynnistykset (tänään)"
+          - entity: sensor.heatpump_avg_run_time
+            name: "Keskikäyntiaika (min)"
 
   # 2) ENERGIA
   - title: "Energia"
@@ -70,7 +68,7 @@ views:
         period: day
         stat_types: [ change ]
         entities:
-          - entity: sensor.heatpump_electrical_energy_total_lts_v2
+          - entity: sensor.heatpump_energy_daily
             name: "Sähkö (kWh/pv)"
 
       - type: statistics-graph
@@ -80,57 +78,45 @@ views:
         period: day
         stat_types: [ change ]
         entities:
-          - entity: sensor.heatpump_heat_energy_total_lts_v2
+          - entity: sensor.heatpump_heat_daily
             name: "Lämpö (kWh/pv)"
 
       - type: statistics-graph
-        title: "UFH märkätilat (kWh/pv) – viimeiset 7 päivää"
+        title: "UFH märkätilat (kWh/pv) – 7 pv"
         chart_type: bar
         days_to_show: 7
         period: day
         stat_types: [ change ]
         entities:
-          - entity: sensor.heatpump_ufh_wet_energy_total_lts_v2
-            name: "UFH märkätilat (kWh/pv)"
+          - entity: sensor.heatpump_ufh_wet_energy_daily
+            name: "UFH Märkätilat"
 
       - type: statistics-graph
-        title: "UFH muut tilat (kWh/pv) – viimeiset 7 päivää"
+        title: "UFH muut tilat (kWh/pv) – 7 pv"
         chart_type: bar
         days_to_show: 7
         period: day
         stat_types: [ change ]
         entities:
-          - entity: sensor.heatpump_ufh_main_energy_total_lts_v2
-            name: "UFH muut tilat (kWh/pv)"
-
-      - type: statistics-graph
-        title: "UFH yhteensä (kWh/pv) – viimeiset 7 päivää"
-        chart_type: bar
-        days_to_show: 7
-        period: day
-        stat_types: [ change ]
-        entities:
-          - entity: sensor.heatpump_ufh_total_energy_total_lts_v2
-            name: "UFH yhteensä (kWh/pv)"
+          - entity: sensor.heatpump_ufh_main_energy_daily
+            name: "UFH Muut tilat"
 
       - type: entities
-        title: "Utility-mittarit (päivä/vko/kk/vuosi)"
+        title: "Utility-mittarit"
         show_header_toggle: false
         entities:
-          - entity: sensor.heatpump_electricity_daily
-          - entity: sensor.heatpump_electricity_weekly
-          - entity: sensor.heatpump_electricity_monthly
-          - entity: sensor.heatpump_electricity_yearly
+          - entity: sensor.heatpump_energy_daily
+            name: "Sähkö Tänään"
+          - entity: sensor.heatpump_energy_monthly
+            name: "Sähkö Kuukausi"
           - entity: sensor.heatpump_heat_daily
-          - entity: sensor.heatpump_heat_weekly
+            name: "Lämpö Tänään"
           - entity: sensor.heatpump_heat_monthly
-          - entity: sensor.heatpump_heat_yearly
-          - entity: sensor.heatpump_ufh_wet_daily_v2
-            name: "UFH märkätilat – päivä (kWh)"
-          - entity: sensor.heatpump_ufh_main_daily_v2
-            name: "UFH muut tilat – päivä (kWh)"
-          - entity: sensor.heatpump_ufh_total_daily_v2
-            name: "UFH yhteensä – päivä (kWh)"
+            name: "Lämpö Kuukausi"
+          - entity: sensor.heatpump_ufh_wet_energy_daily
+            name: "UFH Märkätilat Tänään"
+          - entity: sensor.heatpump_ufh_main_energy_daily
+            name: "UFH Muut tilat Tänään"
 
       - type: entities
         title: "SCOP-aggregaatit"
@@ -147,37 +133,36 @@ views:
       - type: history-graph
         title: "dT – lataus vs liuos (24 h)"
         hours_to_show: 24
-        refresh_interval: 30
+        refresh_interval: 60
         entities:
-          - entity: sensor.heatpump_delta_t
-            name: "Heatpump Delta T"
-          - entity: sensor.heatpump_brine_delta_t_display
-            name: "Heatpump Brine Delta T"
+          - entity: sensor.techroom_esp32_hp_delta_t
+            name: "Lataus ΔT"
+          - entity: sensor.techroom_esp32_hp_brine_delta_t
+            name: "Liuos ΔT"
 
       - type: history-graph
         title: "Varaaja – kerrokset (24 h)"
-        hours_to__show: 24
-        refresh_interval: 30
+        hours_to_show: 24
+        refresh_interval: 60
         entities:
-          - entity: sensor.heatpump_tank_top
-          - entity: sensor.heatpump_tank_mid_top
-          - entity: sensor.heatpump_tank_mid_bottom
-          - entity: sensor.heatpump_tank_bottom
-          - entity: sensor.heatpump_tank_average
+          - entity: sensor.techroom_esp32_varaaja_yla
+          - entity: sensor.techroom_esp32_varaaja_keski_yla
+          - entity: sensor.techroom_esp32_varaaja_keski_ala
+          - entity: sensor.techroom_esp32_varaaja_ala
 
       - type: entities
         title: "Kosteat tilat – lattialämmitys"
         show_header_toggle: false
         entities:
           - entity: input_number.hp_kosteat_virtaus
-            name: "Virtaus (m³/h)"
-          - entity: sensor.heatpump_ufh_wet_supply_v2
+            name: "Asetus: Virtaus (m³/h)"
+          - entity: sensor.techroom_esp32_ll_kosteat_tilat_meno
             name: "Meno (°C)"
-          - entity: sensor.heatpump_ufh_wet_return_v2
+          - entity: sensor.techroom_esp32_ll_kosteat_tilat_paluu
             name: "Paluu (°C)"
-          - entity: sensor.heatpump_ufh_wet_delta_t_v2
+          - entity: sensor.heatpump_ufh_wet_delta_t
             name: "Delta T (°C)"
-          - entity: sensor.heatpump_ufh_wet_heat_power_v2
+          - entity: sensor.heatpump_ufh_wet_power
             name: "Hetkellinen teho (kW)"
 
       - type: entities
@@ -185,38 +170,36 @@ views:
         show_header_toggle: false
         entities:
           - entity: input_number.hp_ufh_main_flow
-            name: "Virtaus (m³/h)"
-          - entity: sensor.heatpump_ufh_main_supply_v2
+            name: "Asetus: Virtaus (m³/h)"
+          - entity: sensor.techroom_esp32_ufh_muut_tilat_meno
             name: "Meno (°C)"
-          - entity: sensor.heatpump_ufh_main_return_v2
+          - entity: sensor.techroom_esp32_ufh_muut_tilat_paluu
             name: "Paluu (°C)"
-          - entity: sensor.heatpump_ufh_main_delta_t_v2
+          - entity: sensor.heatpump_ufh_main_delta_t
             name: "Delta T (°C)"
-          - entity: sensor.heatpump_ufh_main_heat_power_v2
+          - entity: sensor.heatpump_ufh_main_power
             name: "Hetkellinen teho (kW)"
 
       - type: history-graph
-        title: "UFH tehot (24 h)"
+        title: "UFH Lämpötilat (24 h)"
         hours_to_show: 24
-        refresh_interval: 30
+        refresh_interval: 60
         entities:
-          - entity: sensor.heatpump_ufh_wet_heat_power_v2
-            name: "UFH märkätilat (kW)"
-          - entity: sensor.heatpump_ufh_main_heat_power_v2
-            name: "UFH muut tilat (kW)"
-          - entity: sensor.heatpump_ufh_total_heat_power_v2
-            name: "UFH yhteensä (kW)"
-          - entity: sensor.outdoor_temperature_2
-            name: "Ulkolämpötila (°C)"
+          - entity: sensor.techroom_esp32_ll_kosteat_tilat_meno
+            name: "Märkätilat Meno"
+          - entity: sensor.techroom_esp32_ufh_muut_tilat_meno
+            name: "Muut tilat Meno"
+          - entity: sensor.outdoor_temperature
+            name: "Ulkolämpötila"
 
       - type: statistics-graph
-        title: "Kosteat tilat – Teho / Ulkolämpö (suhdeluku)"
+        title: "Kosteat tilat – Teho / Ulkolämpö"
         chart_type: line
         days_to_show: 3
-        stat_types: [mean, min, max]
+        stat_types: [mean]
         entities:
-          - entity: sensor.ufh_wet_heat_vs_outdoor
-            name: "Teho suhteessa ulkolämpötilaan"
+          - entity: sensor.heatpump_ufh_wet_power
+            name: "Teho vs Ulkolämpö"
 
   # 4) OLOSUHTEET
   - title: "Olosuhteet"
@@ -227,20 +210,20 @@ views:
         title: "Tekniikkatila (Tech Room)"
         show_header_toggle: false
         entities:
-          - entity: sensor.heatpump_room_temperature_v2
+          - entity: sensor.techroom_esp32_tech_room_temperature
             name: "Tech Room Temperature (°C)"
-          - entity: sensor.heatpump_room_humidity_v2
+          - entity: sensor.techroom_esp32_tech_room_humidity
             name: "Tech Room Humidity (%)"
-          - entity: sensor.heatpump_rssi_v2
+          - entity: sensor.techroom_esp32_heatpump_rssi
             name: "ESP32 RSSI (dBm)"
 
       - type: history-graph
         title: "Tech Room – lämpötila & kosteus (24 h)"
         hours_to_show: 24
-        refresh_interval: 30
+        refresh_interval: 60
         entities:
-          - entity: sensor.heatpump_room_temperature_v2
-          - entity: sensor.heatpump_room_humidity_v2
+          - entity: sensor.techroom_esp32_tech_room_temperature
+          - entity: sensor.techroom_esp32_tech_room_humidity
 
       - type: entities
         title: "Brine mittaukset"
@@ -250,17 +233,17 @@ views:
             name: "Brine menosisään (°C)"
           - entity: sensor.techroom_esp32_hp_liuos_paluu
             name: "Brine paluu (°C)"
-          - entity: sensor.heatpump_brine_power
-            name: "Brine Power (kW)"
+          - entity: sensor.techroom_esp32_hp_brine_delta_t
+            name: "Brine Delta T"
 
       - type: history-graph
-        title: "Brine – meno/paluu/teho (24 h)"
+        title: "Brine – meno/paluu (24 h)"
         hours_to_show: 24
-        refresh_interval: 30
+        refresh_interval: 60
         entities:
           - entity: sensor.techroom_esp32_hp_liuos_meno
           - entity: sensor.techroom_esp32_hp_liuos_paluu
-          - entity: sensor.heatpump_brine_power
+          - entity: sensor.techroom_esp32_hp_brine_delta_t
 
   # 5) ANALYTIIKKA
   - title: "Analytiikka"
@@ -270,9 +253,9 @@ views:
       - type: history-graph
         title: "COP vs Brine In (24 h)"
         hours_to_show: 24
-        refresh_interval: 30
+        refresh_interval: 60
         entities:
-          - entity: sensor.heatpump_cop_gauge
+          - entity: sensor.techroom_esp32_heat_pump_cop
             name: "COP"
           - entity: sensor.techroom_esp32_hp_liuos_meno
             name: "Brine In (°C)"
@@ -283,33 +266,22 @@ views:
         period: day
         stat_types: [ mean ]
         entities:
-          - entity: sensor.heatpump_cop_gauge
+          - entity: sensor.techroom_esp32_heat_pump_cop
             name: "COP (ka)"
           - entity: sensor.techroom_esp32_hp_liuos_meno
             name: "Brine In (ka)"
 
       - type: history-graph
-        title: "Tehot: P_el vs P_th vs UFH total vs dE/dt (24 h)"
+        title: "Tehot: P_el vs P_th vs UFH total (24 h)"
         hours_to_show: 24
-        refresh_interval: 30
+        refresh_interval: 60
         entities:
-          - entity: sensor.heatpump_power_display_ui
+          - entity: sensor.techroom_esp32_heat_pump_power
             name: "P_el (kW)"
-          - entity: sensor.heatpump_heat_power
+          - entity: sensor.techroom_esp32_hp_lampoteho
             name: "P_th (kW)"
-          - entity: sensor.heatpump_ufh_total_heat_power_v2
-            name: "UFH total (kW)"
-          - entity: sensor.tank_energy_change_kw_simple
+          - entity: sensor.tank_energy_change_kw
             name: "dE_tank/dt (kW)"
-
-      - type: history-graph
-        title: "Ottoteho – suodatinvertailu (24 h)"
-        hours_to_show: 24
-        refresh_interval: 30
-        entities:
-          - entity: sensor.heatpump_power_display
-          - entity: sensor.heatpump_power_display_tc15
-          - entity: sensor.heatpump_power_display_tc30
 
   # 6) MITTARIT (gauge)
   - title: "Mittarit"
@@ -318,49 +290,35 @@ views:
     cards:
       - type: gauge
         name: "COP (hetkellinen)"
-        entity: sensor.heatpump_cop_gauge
-        min: 0
-        max: 8
-        severity: { green: 3, yellow: 2, red: 0 }
-
-      - type: gauge
-        name: "SCOP (instant)"
-        entity: sensor.heatpump_scop_instant
+        entity: sensor.techroom_esp32_heat_pump_cop
         min: 0
         max: 8
         severity: { green: 3, yellow: 2, red: 0 }
 
       - type: gauge
         name: "UFH märkätilat teho (kW)"
-        entity: sensor.heatpump_ufh_wet_heat_power_v2
+        entity: sensor.heatpump_ufh_wet_power
         min: 0
         max: 3
         severity: { green: 1.6, yellow: 0.5, red: 0 }
 
       - type: gauge
         name: "UFH muut tilat teho (kW)"
-        entity: sensor.heatpump_ufh_main_heat_power_v2
+        entity: sensor.heatpump_ufh_main_power
         min: 0
         max: 4
         severity: { green: 2.0, yellow: 0.5, red: 0 }
 
       - type: gauge
-        name: "UFH yhteensä teho (kW)"
-        entity: sensor.heatpump_ufh_total_heat_power_v2
-        min: 0
-        max: 6
-        severity: { green: 3.5, yellow: 1.0, red: 0 }
-
-      - type: gauge
         name: "Ottoteho P_el (kW)"
-        entity: sensor.heatpump_power_display_ui
+        entity: sensor.techroom_esp32_heat_pump_power
         min: 0
         max: 4
         severity: { green: 2.5, yellow: 1.0, red: 0 }
 
       - type: gauge
         name: "Lämpöteho P_th (kW)"
-        entity: sensor.heatpump_heat_power
+        entity: sensor.techroom_esp32_hp_lampoteho
         min: 0
         max: 12
         severity: { green: 6, yellow: 3, red: 0 }
@@ -391,45 +349,21 @@ views:
             name: "LL muut tilat virtaus (m³/h)"
 
       - type: entities
-        title: "Anturivalinnan aikaohjaus"
+        title: "Anturivalinta ja Aikaohjaus"
         show_header_toggle: false
         entities:
-          - entity: input_select.hp_sensor_mode
-            name: "Tila (On/Auto/Off)"
-          - entity: switch.anturi_2_kaytossa
+          - entity: switch.techroom_esp32_anturi_2_kaytossa
             name: "Anturi 2 käytössä (ESPHome)"
-          - type: divider
-          - entity: input_datetime.hp_sched_start_time
-            name: "Aikaohjaus alkaa"
-          - entity: input_datetime.hp_sched_end_time
-            name: "Aikaohjaus päättyy"
           - type: section
-            label: "Aktiiviset viikonpäivät"
-          - entity: input_boolean.hp_sched_mon
-            name: "Ma"
-          - entity: input_boolean.hp_sched_tue
-            name: "Ti"
-          - entity: input_boolean.hp_sched_wed
-            name: "Ke"
-          - entity: input_boolean.hp_sched_thu
-            name: "To"
-          - entity: input_boolean.hp_sched_fri
-            name: "Pe"
-          - entity: input_boolean.hp_sched_sat
-            name: "La"
-          - entity: input_boolean.hp_sched_sun
-            name: "Su"
+            label: "Aikaohjaus (Placeholder)"
+          # Lisää tähän input_datetime entityt jos ne on luotu
 
       - type: entities
-        title: "Tank-mittarit (debug)"
+        title: "Debug / Diagnostiikka"
         show_header_toggle: false
         entities:
-          - entity: sensor.tankavg_dtdt_kph
-            name: "TankAvg dT/dt (K/h)"
-          - entity: sensor.tankavg_dtdt_kph_sma10
-            name: "TankAvg dT/dt SMA10 (K/h)"
-          - entity: sensor.tank_energy_change_kw_v4
-            name: "Tank Energy Change (kW) v4"
+          - entity: sensor.techroom_esp32_heatpump_rssi
+          - entity: sensor.techroom_esp32_heatpump_uptime
 
   # 8) HÄLYTYKSET
   - title: "Hälytykset"
@@ -440,41 +374,25 @@ views:
         title: "Asetukset"
         show_header_toggle: false
         entities:
-          - entity: input_number.ufh_vs_tank_margin_c
-            name: "UFH vs TankTop marginaali (°C)"
-          - entity: input_number.hp_cold_tank_limit_c
-            name: "Pitkä OFF → TankTop 'kylmä' raja (°C)"
           - entity: input_number.hp_min_cop_limit
             name: "COP minimi"
           - entity: input_number.hp_brine_dt_limit
             name: "Brine ΔT max (°C)"
-          - entity: input_number.hp_ufh_dt_min_wet
-            name: "UFH ΔT min (märkätilat)"
-          - entity: input_number.hp_ufh_dt_min_main
-            name: "UFH ΔT min (muu talo)"
 
       - type: entity-filter
         card:
           type: entities
-          title: "Aktiiviset hälytykset (tila)"
+          title: "Aktiiviset hälytykset"
           state_color: true
           show_empty: false
         entities:
-          - binary_sensor.hp_alert_ufh_supply_ge_tanktop
-          - binary_sensor.hp_alert_long_off_cold
           - binary_sensor.hp_alert_cop_low
           - binary_sensor.hp_alert_brine_dt_high
-          - binary_sensor.hp_alert_ufh_dt_low_wet
-          - binary_sensor.hp_alert_ufh_dt_low_main
         state_filter: [ "on" ]
 
       - type: logbook
         title: "Hälytyshistoria (7 vrk)"
         hours_to_show: 168
         entities:
-          - binary_sensor.hp_alert_ufh_supply_ge_tanktop
-          - binary_sensor.hp_alert_long_off_cold
           - binary_sensor.hp_alert_cop_low
           - binary_sensor.hp_alert_brine_dt_high
-          - binary_sensor.hp_alert_ufh_dt_low_wet
-          - binary_sensor.hp_alert_ufh_dt_low_main

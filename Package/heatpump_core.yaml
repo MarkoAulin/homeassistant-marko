@@ -1,5 +1,5 @@
-# Package/heatpump_core.yaml  (Tank Average poistettu – se on nyt heatpump_tank.yaml)
-# P_el / P_th / dT / COP (display/gauge) / Pulse alias / Running / Last On-Off
+# Package/heatpump_core.yaml - KORJATTU VERSIO (v2.1)
+# Täsmätty states.txt:n mukaisiin nimiin
 
 input_number:
   hp_virtaus:
@@ -12,24 +12,23 @@ input_number:
     icon: mdi:water
 
 input_datetime:
-  hp_run_start: { name: "HP käynnin aloitus", has_date: true, has_time: true }
-  hp_run_end:   { name: "HP käynnin lopetus", has_date: true, has_time: true }
+  hp_run_start:
+    name: "HP käynnin aloitus"
+    has_date: true
+    has_time: true
+  hp_run_end:
+    name: "HP käynnin lopetus"
+    has_date: true
+    has_time: true
 
-input_select:
-  hp_season_mode:
-    name: "HP kausitila"
-    options: ["Talvi", "Kesä"]
-    icon: mdi:calendar
-
-input_boolean:
-  hp_force_lower_sensor:
-    name: "Käytä alempaa anturia (ohjaus)"
-    icon: mdi:arrow-down
-
+# --- AUTOMAATIOT AIKALEIMOILLE ---
 automation:
   - id: hp_run_start_timestamp
     alias: "HP – käynnin aloitushetki"
-    trigger: { platform: state, entity_id: binary_sensor.heatpump_running, to: "on" }
+    trigger: 
+      - platform: state
+        entity_id: binary_sensor.heat_pump_running
+        to: "on"
     action:
       - service: input_datetime.set_datetime
         target: { entity_id: input_datetime.hp_run_start }
@@ -37,7 +36,10 @@ automation:
 
   - id: hp_run_end_timestamp
     alias: "HP – käynnin lopetushetki"
-    trigger: { platform: state, entity_id: binary_sensor.heatpump_running, to: "off" }
+    trigger: 
+      - platform: state
+        entity_id: binary_sensor.heat_pump_running
+        to: "off"
     action:
       - service: input_datetime.set_datetime
         target: { entity_id: input_datetime.hp_run_end }
@@ -45,19 +47,77 @@ automation:
 
 template:
   - sensor:
+      # Sähköteho (kW)
       - name: "Heatpump Power"
         unique_id: heatpump_power
         unit_of_measurement: "kW"
         device_class: power
         state_class: measurement
-        state: >
-          {% set v = states('sensor.techroom_esp32_heat_pump_power') %}
-          {{ v|float(0) if v not in ['unknown','unavailable','', none] else 0 }}
+        state: "{{ states('sensor.hp_sahkoteho') | float(0) }}"
+        availability: "{{ has_value('sensor.hp_sahkoteho') }}"
 
+      # Lämpöteho (kW)
       - name: "Heatpump Heat Power"
         unique_id: heatpump_heat_power
         unit_of_measurement: "kW"
         device_class: power
         state_class: measurement
+        state: "{{ states('sensor.hp_lampoteho') | float(0) }}"
+        availability: "{{ has_value('sensor.hp_lampoteho') }}"
+
+      # Latauspiirin Delta T
+      - name: "Heatpump Delta T"
+        unique_id: heatpump_delta_t
+        unit_of_measurement: "°C"
         state: >
-          {% set v = states('sensor.techroom_esp32_hp
+          {% set meno = states('sensor.hp_lataus_meno') | float(0) %}
+          {% set paluu = states('sensor.hp_lataus_paluu') | float(0) %}
+          {{ (meno - paluu) | round(2) }}
+        availability: "{{ has_value('sensor.hp_lataus_meno') and has_value('sensor.hp_lataus_paluu') }}"
+
+      # COP - Dashboardille
+      - name: "Heatpump COP (display)"
+        unique_id: heatpump_cop_display
+        state: >
+          {% if is_state('binary_sensor.heat_pump_running','on') %}
+             {% set p_elec = states('sensor.hp_sahkoteho') | float(0) %}
+             {% set p_heat = states('sensor.hp_lampoteho') | float(0) %}
+             {% if p_elec > 0.1 %}
+               {{ (p_heat / p_elec) | round(2) }}
+             {% else %} 0 {% endif %}
+          {% else %} 0 {% endif %}
+
+      # Varaaja-anturit
+      - name: "Heatpump Tank Top"
+        unique_id: heatpump_tank_top
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.varaaja_yla') | float(0) | round(1) }}"
+        availability: "{{ has_value('sensor.varaaja_yla') }}"
+
+      - name: "Heatpump Tank Mid Top"
+        unique_id: heatpump_tank_mid_top
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.varaaja_keski_yla') | float(0) | round(1) }}"
+        availability: "{{ has_value('sensor.varaaja_keski_yla') }}"
+
+      - name: "Heatpump Tank Mid Bottom"
+        unique_id: heatpump_tank_mid_bottom
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.varaaja_keski_ala') | float(0) | round(1) }}"
+        availability: "{{ has_value('sensor.varaaja_keski_ala') }}"
+
+      - name: "Heatpump Tank Bottom"
+        unique_id: heatpump_tank_bottom
+        unit_of_measurement: "°C"
+        state: "{{ states('sensor.varaaja_ala') | float(0) | round(1) }}"
+        availability: "{{ has_value('sensor.varaaja_ala') }}"
+
+  - binary_sensor:
+      - name: "Heatpump Running"
+        unique_id: heatpump_running
+        device_class: running
+        state: "{{ states('binary_sensor.heat_pump_running') }}"
+
+      - name: "Heatpump Tariff Active"
+        unique_id: heatpump_tariff_active
+        state: "{{ states('binary_sensor.tariff_active') }}"

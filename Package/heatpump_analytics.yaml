@@ -1,49 +1,75 @@
-# SCOPit ja muut kokooma-analyysit
+# Package/heatpump_analytics.yaml
+# Laskee SCOP, keskiarvot ja hyötysuhteet
+# PÄIVITETTY VASTAAMAAN UUTTA CORE.YAML (v2.0)
 
 template:
   - sensor:
+      # --- INSTANT SCOP / COP ---
       - name: "Heatpump SCOP (instant)"
         unique_id: heatpump_scop_instant
-        unit_of_measurement: ""
-        state_class: measurement
-        icon: mdi:ratio
+        unit_of_measurement: "COP"
         state: >
-          {% set pth = states('sensor.heatpump_heat_power')|float(0) %}
-          {% set pel = states('sensor.heatpump_power_display')|float(0) %}
-          {{ (pth / pel)|round(2) if pth>0 and pel>0 else 0 }}
+          {% set p_el = states('sensor.heatpump_power') | float(0) %}
+          {% set p_th = states('sensor.heatpump_heat_power') | float(0) %}
+          {% if p_el > 0.1 %}
+            {{ (p_th / p_el) | round(2) }}
+          {% else %}
+            0
+          {% endif %}
 
+      # --- LASKENTALLINEN LÄMPÖTEHO (varmistus jos ESP ei laske) ---
+      - name: "Heatpump Heat Power Calc"
+        unique_id: heatpump_heat_power_calc
+        unit_of_measurement: "kW"
+        state: >
+          {% set flow = states('input_number.hp_virtaus') | float(0) %}
+          {% set dt = states('sensor.heatpump_delta_t') | float(0) %}
+          {# Kaava: virtaus (m3/h) * 1.163 * deltaT #}
+          {{ (flow * 1.163 * dt) | round(2) if dt > 0 else 0 }}
+
+      # --- SCOP LASKENTA HISTORIAN PERUSTEELLA ---
       - name: "Heatpump SCOP (daily)"
         unique_id: heatpump_scop_daily
-        unit_of_measurement: ""
-        icon: mdi:calendar-today
-        state_class: measurement
+        unit_of_measurement: "SCOP"
         state: >
-          {% set Q = states('sensor.heatpump_heat_daily')|float(0) %}
-          {% set E = states('sensor.heatpump_electricity_daily')|float(0) %}
-          {{ (Q/E)|round(2) if Q>0 and E>0 else 0 }}
+          {% set e_el = states('sensor.heatpump_energy_daily') | float(0) %}
+          {% set e_th = states('sensor.heatpump_heat_daily') | float(0) %}
+          {% if e_el > 0.1 %}
+            {{ (e_th / e_el) | round(2) }}
+          {% else %}
+            0
+          {% endif %}
 
       - name: "Heatpump SCOP (monthly)"
         unique_id: heatpump_scop_monthly
-        unit_of_measurement: ""
-        icon: mdi:calendar-month
-        state_class: measurement
+        unit_of_measurement: "SCOP"
         state: >
-          {% set Q = states('sensor.heatpump_heat_monthly')|float(0) %}
-          {% set E = states('sensor.heatpump_electricity_monthly')|float(0) %}
-          {{ (Q/E)|round(2) if Q>0 and E>0 else 0 }}
+          {% set e_el = states('sensor.heatpump_energy_monthly') | float(0) %}
+          {% set e_th = states('sensor.heatpump_heat_monthly') | float(0) %}
+          {% if e_el > 0.1 %}
+            {{ (e_th / e_el) | round(2) }}
+          {% else %}
+            0
+          {% endif %}
 
-  - sensor:
-      - name: "Heatpump Brine Power"
-        unique_id: heatpump_brine_power
-        unit_of_measurement: "kW"
-        device_class: power
-        state_class: measurement
-        icon: mdi:snowflake-thermometer
-        state: >
-          {% set meno  = states('sensor.techroom_esp32_hp_liuos_meno') %}
-          {% set paluu = states('sensor.techroom_esp32_hp_liuos_paluu') %}
-          {% set flow  = states('input_number.hp_virtaus')|float(0) %}
-          {% if meno not in ['unknown','unavailable','', none] and paluu not in ['unknown','unavailable','', none] and flow>0 %}
-            {% set dt = (meno|float - paluu|float) %}
-            {{ (1.16 * flow * (dt if dt>0 else 0))|round(2) }}
-          {% else %} 0 {% endif %}
+# --- PÄIVITTÄINEN JA KUUKAUSITTAINEN SEURANTA (Utility Meters) ---
+utility_meter:
+  # Sähkönkulutus (kWh)
+  heatpump_energy_daily:
+    source: sensor.hp_sahkoenergia_yhteensa
+    name: "Heatpump Energy Daily"
+    cycle: daily
+  heatpump_energy_monthly:
+    source: sensor.hp_sahkoenergia_yhteensa
+    name: "Heatpump Energy Monthly"
+    cycle: monthly
+
+  # Tuotettu lämpö (kWh)
+  heatpump_heat_daily:
+    source: sensor.hp_tuotettu_lampoenergia_yhteensa
+    name: "Heatpump Heat Daily"
+    cycle: daily
+  heatpump_heat_monthly:
+    source: sensor.hp_tuotettu_lampoenergia_yhteensa
+    name: "Heatpump Heat Monthly"
+    cycle: monthly
